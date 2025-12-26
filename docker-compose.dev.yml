@@ -1,0 +1,35 @@
+# Development overrides for docker-compose.yml
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  backend:
+    environment:
+      - DJANGO_ENV=development
+      - DEBUG=True
+    volumes:
+      - ./backend:/app
+      - ./backend/media:/app/media
+      - ./backend/staticfiles:/app/staticfiles
+      - ./backend/logs:/app/logs
+    command: >
+      sh -c "
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput || true &&
+        gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
+      "
+
+  frontend:
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+

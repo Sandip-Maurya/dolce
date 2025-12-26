@@ -1,0 +1,68 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files
+docker-compose*.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Backups
+backups/
+*.sql
+*.sql.gz
+
+# Node modules (will be installed in container)
+node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# SSL certificates
+nginx/ssl/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite3-journal
+

@@ -1,0 +1,190 @@
+# Backend gitignore (Django/Python)
+
+# Environment variables
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# Database
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/*.db
+
+# Django
+backend/media/
+backend/static/
+backend/staticfiles/
+backend/collected_static/
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+backend/.Python
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.env/
+backend/ENV/
+backend/env.bak/
+backend/venv.bak/
+
+# IDE
+backend/.vscode/
+backend/.idea/
+backend/*.swp
+backend/*.swo
+backend/*.swn
+backend/.fuse_hidden*
+backend/.DS_Store
+backend/.directory
+
+# Testing
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.tox/
+backend/.cache
+backend/nosetests.xml
+backend/coverage.xml
+backend/*.cover
+backend/.hypothesis/
+
+# Distribution / packaging
+backend/dist/
+backend/build/
+backend/*.egg-info/
+backend/.eggs/
+backend/wheels/
+backend/share/python-wheels/
+
+# Logs
+backend/*.log
+backend/logs/
+
+# OS
+backend/.DS_Store
+backend/Thumbs.db
+
+# UV (Python package manager)
+backend/.uv/
+
+# Frontend gitignore (React/Vite/TypeScript)
+
+# Dependencies
+frontend/node_modules/
+frontend/.pnpm-store/
+
+# Build outputs
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.vite-cache/
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Testing
+frontend/coverage/
+frontend/.nyc_output/
+
+# Logs
+frontend/*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+
+# Editor directories and files
+frontend/.vscode/*
+frontend/.idea/
+frontend/*.suo
+frontend/*.ntvs*
+frontend/*.njsproj
+frontend/*.sln
+frontend/*.sw?
+
+# OS
+frontend/.DS_Store
+frontend/Thumbs.db
+
+# TypeScript
+frontend/*.tsbuildinfo
+
+# ESLint cache
+frontend/.eslintcache
+
+# Optional npm cache directory
+frontend/.npm
+
+# Optional REPL history
+frontend/.node_repl_history
+
+# Output of 'npm pack'
+frontend/*.tgz
+
+# Yarn Integrity file
+frontend/.yarn-integrity
+
+# parcel-bundler cache
+frontend/.cache
+frontend/.parcel-cache
+
+# Next.js (if used in future)
+frontend/.next/
+frontend/out/
+
+# Nuxt.js (if used in future)
+frontend/.nuxt/
+
+# Vite
+frontend/dist-ssr/
+frontend/*.local
+
+# MSW (Mock Service Worker)
+frontend/public/mockServiceWorker.js
+
+# ============================================
+# Deployment & Docker
+# ============================================
+
+# Root level .env files (for docker-compose)
+.env
+.env.local
+.env.*.local
+.env.dev
+.env.prod
+
+# Docker volumes and data
+backups/
+*.sql.gz
+*.sql
+
+# SSL certificates
+nginx/ssl/
+
+# Docker override files (if any)
+docker-compose.override.yml
+
+# ============================================
+# Logs and temporary files
+# ============================================
+
+# Root level logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~

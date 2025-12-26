@@ -1,0 +1,383 @@
+DOLCE FIORE — FRONTEND PHASED DEVELOPMENT INSTRUCTIONS
+Premium E-Commerce • Frontend-First with Mock Backend
+
+======================================================================
+0. BRAND OVERVIEW (KEEP THIS CONTEXT IN ALL DESIGN DECISIONS)
+======================================================================
+Brand: Dolce Fiore
+
+Brand Description:
+"At Dolce Fiore, we create premium, handcrafted gift hampers rooted in health, sustainability, and conscious living. Every product is designed to delight while leaving a positive impact — on people and the planet. Dolce Fiore began as a homegrown venture with a simple dream — to craft thoughtful, sustainable gifting experiences. What started four years ago with a passion for healthy indulgence has grown into a celebration of creativity and conscious living. Our hampers feature organic, guilt-free treats, air-fried savories, and sugar-free chocolates, all wrapped in eco-friendly, reusable packaging. We proudly partner with local artisans across India, bringing tradition and sustainability into every creation."
+
+Design Personality:
+- Premium • Minimal • Elegant • Conscious • Artisanal
+- Soft neutral palette (warm beige, off-white, deep brown/charcoal, muted gold)
+- Sustainable textures (kraft paper, wood, marble, cotton, jute)
+- Premium photography with natural light and editorial vibe
+- Smooth, subtle animations (no flashiness)
+
+Target Audience:
+Premium, health-conscious, eco-aware customers and luxury gift buyers.
+
+======================================================================
+1. IMAGE HANDLING POLICY
+======================================================================
+Dolce Fiore is visually driven. Use high-quality images for both development
+and production-ready UI structures.
+
+For Development (Mock Data):
+- Use Unsplash (primary) or Pexels (secondary).
+- Only use premium, editorial-quality images (no cheap-looking photos).
+- Prefer:
+  - gourmet desserts
+  - artisanal sweets
+  - organic snacks
+  - eco-friendly packaging (cloth, kraft paper, wooden trays, jute, glass jars)
+  - warm, natural lighting
+  - rustic food styling
+
+Examples of search keywords:
+- “organic sweets”
+- “artisanal chocolate”
+- “healthy snacks”
+- “eco friendly packaging”
+- “gift hamper”
+- “gourmet desserts”
+- “rustic food photography”
+
+Image Storage Logic:
+- MOCK mode → API returns Unsplash URLs.
+- REAL backend → API returns CDN/public storage URLs (S3, Cloudflare R2, DO Spaces, etc.).
+
+IMPORTANT:
+The UI must NEVER care where the image comes from.
+It must always receive image URLs through the API and render them directly.
+
+Future Production Setup:
+- Store real images in object storage (S3, R2, Spaces).
+- Serve via CDN.
+- API returns URLs only.
+
+======================================================================
+2. RESPONSIVE DESIGN POLICY (MOBILE-FIRST)
+======================================================================
+Responsive design is mandatory.
+
+- Design mobile-first and scale up to tablet and desktop.
+- Use Tailwind’s mobile-first breakpoints (e.g., base → sm → md → lg → xl).
+- All key layouts (nav, hero, product grid, cart, checkout) must:
+  - Look good on ~360px width phones.
+  - Scale cleanly up to large desktop screens.
+- Test at minimum:
+  - Small phones (~360–400px)
+  - Tablets (~768px)
+  - Laptops (~1280px)
+  - Large desktops (~1440–1600px)
+
+Mobile-First Rules:
+- Default styles are for mobile.
+- Add responsive classes only where needed for larger screens.
+- Ensure buttons and tap targets are finger-friendly on mobile.
+- Use sticky bottom sections where helpful (e.g., cart summary).
+
+======================================================================
+3. PROJECT SETUP (PHASE 0)
+======================================================================
+Goal:
+Set up a clean React + TypeScript + Tailwind app with routing and structure.
+
+Tasks:
+1. Create project via Vite + React + TypeScript.
+2. Install:
+   - TailwindCSS
+   - React Router
+   - TanStack Query (React Query)
+   - Zustand or Redux Toolkit (for UI state only)
+
+3. Set up folder structure something similar:
+
+   src/
+     app/             # root layout + router
+     components/      # shared UI
+     features/        # domain modules (catalog, cart, orders, auth, payments)
+     lib/
+       api/           # API client + endpoints
+       config/
+     mocks/           # MSW handlers & sample JSON
+     assets/          # stock images
+     styles/
+
+4. Set up routes:
+   /                  Home
+   /products          Product listing
+   /products/:slug    Product detail
+   /cart              Cart
+   /checkout          Checkout
+   /orders            My orders
+   /auth/login        Login
+   /auth/signup       Signup
+   /profile           Profile
+
+Done When:
+- App runs with empty placeholder pages.
+- Navigation works on mobile and desktop.
+
+======================================================================
+4. BRANDING & DESIGN SYSTEM (PHASE 1)
+======================================================================
+Goal:
+Establish the Dolce Fiore aesthetic and core UI components (mobile-first).
+
+Typography:
+- Use: Playfair Display (headings) + Inter (body)
+  → Premium, elegant, editorial, suitable for luxury gifting.
+
+Tailwind Theme:
+- Add brand colors, spacing scale, typography scale.
+
+Layout:
+- Implement MainLayout with:
+  - Navbar (logo “Dolce Fiore”, navigation links, cart icon).
+  - Footer (brand story snippet, links).
+- Implement a responsive Container component (max-width + horizontal padding).
+
+Shared Components:
+- Button (primary, secondary, ghost).
+- Card (for products & content).
+- Badge (organic, eco-friendly, sugar-free, artisan).
+- SectionTitle.
+- Simple Modal (if needed).
+
+Imagery placeholders:
+- Use Unsplash premium-quality temporary images.
+- For hero and main sections, pick editorial, warm-toned images.
+
+Done When:
+- App visually resembles a premium brand shell.
+- Layout behaves correctly on mobile and desktop.
+
+======================================================================
+5. DATA LAYER & MOCK API (PHASE 2)
+======================================================================
+Goal:
+Prepare architecture for future Django backend using TypeScript models,
+React Query, and MSW mock APIs. Also keep payment integration easy later.
+
+TypeScript Models:
+Product:
+- id: string
+- slug: string
+- name: string
+- description: string
+- price: number
+- currency: "INR"
+- category: "COOKIE" | "SNACK" | "CAKE" | "SWEET" | "HAMPER"
+- images: string[]        # URLs only
+- tags: string[]          # "organic", "guilt-free", "eco-friendly", "artisan"
+- is_available: boolean
+- weight_grams?: number
+
+CartItem:
+- id: string
+- product: Product
+- quantity: number
+- line_total: number
+
+Order:
+- id: string
+- items: CartItem[]
+- total: number
+- status: "PLACED" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED"
+- created_at: string
+
+Payment (interface for future use):
+- paymentId: string
+- provider: "RAZORPAY" | "STRIPE" | "OTHER"
+- status: "PENDING" | "SUCCESS" | "FAILED"
+
+API Client (lib/api/client.ts):
+- Wrapper around fetch/axios.
+- Uses BASE_URL from env.
+- Methods: get, post, etc.
+- Returns parsed JSON.
+- Central place for adding auth headers later.
+
+Endpoints (lib/api/endpoints/*.ts):
+- catalog.ts → fetchProducts(), fetchProduct()
+- cart.ts → getCart(), addToCart(), removeFromCart()
+- orders.ts → getOrders(), placeOrder()
+- payments.ts (for future): createPaymentIntent() or createPaymentOrder()
+- auth.ts → login(), logout()
+
+React Query:
+- Wrap app in QueryClientProvider.
+- Hooks:
+  useProducts(), useProduct(), useCart(), useOrders()
+  (Later: useCreatePaymentIntent() etc.)
+
+Mock Service Worker (MSW):
+Implement handlers:
+- GET    /api/products
+- GET    /api/products/:slug
+- GET    /api/cart
+- POST   /api/cart
+- DELETE /api/cart/:id
+- POST   /api/orders
+- GET    /api/orders
+- POST   /api/auth/login
+- POST   /api/auth/logout
+- (Optional for easy payment integration later)
+  POST   /api/payments/create-order   → returns a mock payment order id
+
+Mock Data:
+- Use UNSPLASH URLs for all product images.
+- Products represent Dolce Fiore-style items (organic sweets, sugar-free treats, eco hampers).
+
+Done When:
+- useProducts() and other hooks fetch mock data from MSW.
+- Basic payment endpoint structure exists (even if not fully used yet).
+
+======================================================================
+6. CORE PAGES & SHOPPING FLOW (PHASE 3)
+======================================================================
+Goal:
+Implement full shopping experience using mock data, responsive & mobile-first.
+
+Pages and Requirements:
+
+1. Home (/):
+   - Hero section:
+     - Premium Unsplash image as background/hero.
+     - Tagline: handcrafted, sustainable, guilt-free gifting.
+   - Sections:
+     - Featured Hampers.
+     - Healthy Indulgences.
+     - Sustainable Gifting.
+     - Dolce Fiore Story (short).
+
+2. Product Listing (/products):
+   - Responsive grid of ProductCards.
+   - Filters (client-side):
+     - Category.
+     - Tags like organic, sugar-free, eco-friendly.
+   - Sorting: price or newest.
+   - Works cleanly on mobile (one/two columns) and desktop (multi-column).
+
+3. Product Detail (/products/:slug):
+   - Large main image + optional thumbnails.
+   - Product name, price, tags.
+   - Description:
+     - Ingredients, benefits, sustainability notes, gifting context.
+   - Add to Cart button.
+   - Related products section.
+
+4. Cart (/cart):
+   - List cart items with:
+     - Image, name, tags, quantity, line total.
+   - Quantity update and item removal.
+   - Summary sidebar/card with totals.
+   - Responsive: stacked on mobile, side-by-side on desktop.
+   - “Proceed to Checkout” button.
+
+5. Checkout (/checkout):
+   - Step-based layout (visually, can be one page):
+     Step 1: Customer details + address.
+     Step 2: Delivery preferences + gift note.
+     Step 3: Payment summary + mock payment.
+   - For now:
+     - Use a “Confirm & Place Order” button that calls placeOrder().
+     - Payment integration placeholder UI (no real gateway yet).
+   - Structure the payment section so it’s easy to plug in Razorpay/Stripe later:
+     - Have a dedicated PaymentSection component.
+     - Assume backend will provide a payment order/intent id via /api/payments/create-order.
+
+6. Order Confirmation:
+   - Clear “Thank you” and order summary.
+   - Reinforce brand values (handcrafted, sustainable, conscious).
+
+7. My Orders (/orders):
+   - List orders with id, date, total, status.
+   - Simple timeline or status badges.
+
+8. Auth pages:
+   - Simple forms for login & signup (mock logic OK for now).
+
+Done When:
+- A user can:
+  - Browse products → view details → add to cart → checkout → see confirmation.
+- All flows are responsive and mobile-first.
+
+======================================================================
+7. PREMIUM POLISH & BRAND DEPTH (PHASE 4)
+======================================================================
+Goal:
+Refine UI to feel truly luxurious and on-brand.
+
+Tasks:
+- Replace weak placeholders with better Unsplash images.
+- Refine microcopy:
+  - Use phrases like “guilt-free indulgence”, “handcrafted with care”, “conscious gifting”, “eco-friendly packaging”.
+- Add subtle animations:
+  - Card hover lift.
+  - Fade-in section reveals.
+  - Smooth page transitions.
+- Accessibility:
+  - Alt text on all images (describe product + premium/sustainable angle).
+  - Check color contrast.
+  - Keyboard usability.
+- Performance:
+  - Optimize image sizes.
+  - Use lazy loading where appropriate.
+
+Done When:
+- The site feels like a premium, boutique gifting brand on both mobile and desktop.
+
+======================================================================
+8. PREP FOR DJANGO BACKEND & PAYMENT GATEWAY (PHASE 5)
+======================================================================
+Goal:
+Frontend ready for real Django + Postgres backend and payment gateway integration (e.g., Razorpay/Stripe) with minimal changes.
+
+Backend Expectations:
+- Implement Django REST API endpoints matching:
+  - /api/products
+  - /api/products/:slug
+  - /api/cart
+  - /api/orders
+  - /api/auth/*
+  - /api/payments/create-order (for payment provider order/intent)
+- Store and serve image URLs via CDN/object storage.
+- Return JSON matching TypeScript models.
+
+Easy Payment Gateway Integration:
+- PaymentSection component in checkout should:
+  - Call an API like POST /api/payments/create-order with cart/amount data.
+  - Receive a payment order/intent id and provider details.
+  - Later, integrate gateway script (Razorpay checkout, Stripe Elements, etc.).
+- Frontend payment logic must be isolated in PaymentSection and payments-related hooks, so adding a real gateway only touches:
+  - payments.ts endpoint file
+  - PaymentSection component
+
+Integration Steps:
+1. Switch VITE_API_BASE_URL to point to real backend.
+2. Disable MSW in production.
+3. Backend returns real URLs and payment data.
+4. Plug in Razorpay/Stripe UI into PaymentSection.
+5. Test full flow end-to-end.
+
+Done When:
+- Frontend works with real backend.
+- Payment flow can be wired up by just implementing payment APIs and gateway UI in PaymentSection.
+
+======================================================================
+9. GLOBAL BEST PRACTICES (APPLY THROUGHOUT)
+======================================================================
+- NEVER call fetch/axios directly in components — always use lib/api client.
+- Keep components presentational; put data fetching and logic in hooks.
+- UI must never assume where images are stored; always use URLs from API.
+- Maintain strict TypeScript typing and consistent naming.
+- Enforce mobile-first, fully responsive layouts.
+- Keep design consistent with Dolce Fiore’s premium, sustainable, handcrafted identity.
+- Keep architecture simple and modular so backend + payment integration later is easy.
+
+END OF INSTRUCTIONS
