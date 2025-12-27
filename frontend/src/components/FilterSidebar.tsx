@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { SearchBar } from './SearchBar'
-import type { Product } from '../lib/api/endpoints/catalog'
+import type { CategoryWithSubcategories, Tag } from '../lib/api/endpoints/catalog'
 
 interface FilterSidebarProps {
   searchQuery: string
   onSearchChange: (value: string) => void
-  categories: Product['category'][]
-  selectedCategories: string[]
-  onToggleCategory: (category: string) => void
-  availableTags: string[]
+  categories: CategoryWithSubcategories[]
+  selectedSubcategories: string[]
+  onToggleSubcategory: (subcategoryId: string) => void
+  expandedCategoryId: string | null
+  onExpandedCategoryChange: (categoryId: string | null) => void
+  availableTags: Tag[]
   selectedTags: string[]
-  onToggleTag: (tag: string) => void
+  onToggleTag: (tagId: string) => void
   onClearFilters: () => void
   isMobile?: boolean
   isOpen?: boolean
@@ -21,8 +23,10 @@ export function FilterSidebar({
   searchQuery,
   onSearchChange,
   categories,
-  selectedCategories,
-  onToggleCategory,
+  selectedSubcategories,
+  onToggleSubcategory,
+  expandedCategoryId,
+  onExpandedCategoryChange,
   availableTags,
   selectedTags,
   onToggleTag,
@@ -47,6 +51,21 @@ export function FilterSidebar({
     }
   }, [isMobile, isOpen])
 
+  // Auto-expand category when its subcategory is selected
+  useEffect(() => {
+    if (selectedSubcategories.length > 0) {
+      // Find the category that contains the selected subcategory
+      const categoryWithSubcategory = categories.find(c => 
+        c.subcategories?.some(s => 
+          selectedSubcategories.includes(s.id) || selectedSubcategories.includes(s.slug)
+        )
+      )
+      if (categoryWithSubcategory && expandedCategoryId !== categoryWithSubcategory.id && expandedCategoryId !== categoryWithSubcategory.slug) {
+        onExpandedCategoryChange(categoryWithSubcategory.id)
+      }
+    }
+  }, [selectedSubcategories, categories, expandedCategoryId, onExpandedCategoryChange])
+
   const toggleSection = (section: 'category' | 'tags') => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -54,7 +73,7 @@ export function FilterSidebar({
     }))
   }
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedTags.length > 0 || searchQuery.length > 0
+  const hasActiveFilters = selectedSubcategories.length > 0 || selectedTags.length > 0 || searchQuery.length > 0
 
   const sidebarContent = (
     <div className="h-full flex flex-col">
@@ -82,9 +101,9 @@ export function FilterSidebar({
               <path d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
             <span>Category</span>
-            {selectedCategories.length > 0 && (
+            {selectedSubcategories.length > 0 && (
               <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-charcoal-900 text-beige-50 rounded-full">
-                {selectedCategories.length}
+                {selectedSubcategories.length}
               </span>
             )}
           </div>
@@ -103,21 +122,70 @@ export function FilterSidebar({
           </svg>
         </button>
         {expandedSections.category && (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {categories.map((category) => {
-              const isSelected = selectedCategories.includes(category)
+              const isExpanded = expandedCategoryId === category.id || expandedCategoryId === category.slug
+              const hasSubcategories = category.subcategories && category.subcategories.length > 0
+              
+              const handleCategoryClick = () => {
+                // If clicking a different category, collapse previous and expand new
+                if (expandedCategoryId !== category.id && expandedCategoryId !== category.slug) {
+                  onExpandedCategoryChange(category.id)
+                } else if (hasSubcategories) {
+                  // Toggle expand/collapse only if category has subcategories
+                  onExpandedCategoryChange(isExpanded ? null : category.id)
+                }
+              }
+              
               return (
-                <button
-                  key={category}
-                  onClick={() => onToggleCategory(category)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-charcoal-500 focus:ring-offset-1 ${
-                    isSelected
-                      ? 'bg-charcoal-900 text-beige-50'
-                      : 'bg-beige-100 text-charcoal-700 hover:bg-beige-200'
-                  }`}
-                >
-                  {category.charAt(0) + category.slice(1).toLowerCase()}
-                </button>
+                <div key={category.id} className="space-y-1">
+                  <button
+                    onClick={handleCategoryClick}
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-charcoal-500 focus:ring-offset-1 flex items-center justify-between bg-beige-100 text-charcoal-700 hover:bg-beige-200"
+                  >
+                    <span>{category.name}</span>
+                    {hasSubcategories && (
+                      <svg
+                        className={`h-4 w-4 text-charcoal-500 transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    )}
+                  </button>
+                  {isExpanded && hasSubcategories && (
+                    <div className="pl-4 space-y-1">
+                      {category.subcategories.map((subcategory) => {
+                        const isSubcategorySelected = selectedSubcategories.some(
+                          (id) => id === subcategory.id || id === subcategory.slug
+                        )
+                        return (
+                          <button
+                            key={subcategory.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleSubcategory(subcategory.id)
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-normal transition-colors focus:outline-none focus:ring-2 focus:ring-charcoal-500 focus:ring-offset-1 ${
+                              isSubcategorySelected
+                                ? 'bg-charcoal-700 text-beige-50'
+                                : 'bg-beige-50 text-charcoal-600 hover:bg-beige-100'
+                            }`}
+                          >
+                            {subcategory.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -166,18 +234,18 @@ export function FilterSidebar({
         {expandedSections.tags && (
           <div className="space-y-2">
             {availableTags.map((tag) => {
-              const isSelected = selectedTags.includes(tag)
+              const isSelected = selectedTags.includes(tag.id) || selectedTags.includes(tag.slug)
               return (
                 <button
-                  key={tag}
-                  onClick={() => onToggleTag(tag)}
+                  key={tag.id}
+                  onClick={() => onToggleTag(tag.id)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-charcoal-500 focus:ring-offset-1 ${
                     isSelected
                       ? 'bg-charcoal-900 text-beige-50'
                       : 'bg-beige-100 text-charcoal-700 hover:bg-beige-200'
                   }`}
                 >
-                  {tag.charAt(0).toUpperCase() + tag.slice(1).replace('-', ' ')}
+                  {tag.name}
                 </button>
               )
             })}

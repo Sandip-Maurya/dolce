@@ -46,16 +46,16 @@ function ProductCard({ product }: { product: Product }) {
           <div className="flex flex-wrap gap-2 mb-3">
             {product.tags.slice(0, 2).map((tag) => (
               <Badge
-                key={tag}
-                label={tag}
+                key={tag.id}
+                label={tag.name}
                 type={
-                  tag === 'organic'
+                  tag.slug === 'organic'
                     ? 'organic'
-                    : tag === 'eco-friendly'
+                    : tag.slug === 'eco-friendly'
                       ? 'eco-friendly'
-                      : tag === 'sugar-free'
+                      : tag.slug === 'sugar-free'
                         ? 'sugar-free'
-                        : tag === 'artisan'
+                        : tag.slug === 'artisan'
                           ? 'artisan'
                           : 'custom'
                 }
@@ -119,9 +119,11 @@ export function HomePage() {
   })
   
   // Filter products for different sections
-  const featuredHampers = products?.filter((p) => p.category === 'HAMPER').slice(0, 3) || []
+  const featuredHampers = products?.filter((p) => 
+    p.category.slug === 'hamper' || p.category.name.toLowerCase() === 'hamper'
+  ).slice(0, 3) || []
   const healthyIndulgences = products?.filter((p) => 
-    p.tags.includes('sugar-free') || p.tags.includes('guilt-free')
+    p.tags.some(tag => tag.slug === 'sugar-free' || tag.slug === 'guilt-free')
   ).slice(0, 3) || []
   return (
     <div className="flex flex-col">

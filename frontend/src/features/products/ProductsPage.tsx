@@ -4,8 +4,11 @@ import { SectionTitle } from '../../components/SectionTitle'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { useProducts } from '../../lib/hooks/useProducts'
+import { useCategoriesWithSubcategories } from '../../lib/hooks/useCategories'
 import { useAddToCart } from '../../lib/hooks/useCart'
 import type { Product } from '../../lib/api/endpoints/catalog'
+import { catalogApi } from '../../lib/api/endpoints/catalog'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { FilterSidebar } from '../../components/FilterSidebar'
 import { SortDropdown } from '../../components/SortDropdown'
@@ -41,20 +44,20 @@ function ProductCard({ product }: { product: Product }) {
         </div>
       </Link>
       <div className="p-4 sm:p-6 flex-grow flex flex-col">
-        <div className="flex-grow">
+          <div className="flex-grow">
           <div className="flex flex-wrap gap-2 mb-3">
             {product.tags.slice(0, 2).map((tag) => (
               <Badge
-                key={tag}
-                label={tag}
+                key={tag.id}
+                label={tag.name}
                 type={
-                  tag === 'organic'
+                  tag.slug === 'organic'
                     ? 'organic'
-                    : tag === 'eco-friendly'
+                    : tag.slug === 'eco-friendly'
                       ? 'eco-friendly'
-                      : tag === 'sugar-free'
+                      : tag.slug === 'sugar-free'
                         ? 'sugar-free'
-                        : tag === 'artisan'
+                        : tag.slug === 'artisan'
                           ? 'artisan'
                           : 'custom'
                 }
@@ -98,14 +101,19 @@ function ProductCard({ product }: { product: Product }) {
 
 export function ProductsPage() {
   const { data: products, isLoading, error } = useProducts()
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  // Use nested categories for better UX - includes subcategories in one call
+  const { data: categoriesWithSubcategories = [] } = useCategoriesWithSubcategories()
+  const { data: tags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: () => catalogApi.fetchTags(),
+  })
+  
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
   const [sortOption, setSortOption] = useState<SortOption>('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false)
-
-  const categories: Product['category'][] = ['COOKIE', 'SNACK', 'CAKE', 'SWEET', 'HAMPER']
-  const availableTags = ['organic', 'sugar-free', 'eco-friendly', 'artisan', 'guilt-free']
 
   const filteredAndSortedProducts = useMemo(() => {
     if (!products) return []
@@ -121,14 +129,36 @@ export function ProductsPage() {
         }
       }
 
-      // Category filter
-      if (selectedCategories.length > 0 && !selectedCategories.includes(product.category)) {
-        return false
+      // Category and Subcategory filter
+      // Priority: subcategories are more specific than category
+      if (selectedSubcategories.length > 0) {
+        // Filter by specific subcategories (most specific)
+        const productSubcategoryId = product.subcategory?.id
+        const productSubcategorySlug = product.subcategory?.slug
+        const matchesSubcategory = selectedSubcategories.some((subcatId) =>
+          subcatId === productSubcategoryId || subcatId === productSubcategorySlug
+        )
+        if (!matchesSubcategory) {
+          return false
+        }
+      } else if (expandedCategoryId) {
+        // Filter by expanded category (when no subcategories are selected)
+        // This includes all products in the category and its subcategories
+        const productCategoryId = product.category.id
+        const productCategorySlug = product.category.slug
+        if (expandedCategoryId !== productCategoryId && expandedCategoryId !== productCategorySlug) {
+          return false
+        }
       }
+      // If no category is expanded and no subcategories are selected, show all products
 
       // Tag filter (product must have at least one selected tag)
       if (selectedTags.length > 0) {
-        const hasSelectedTag = selectedTags.some((tag) => product.tags.includes(tag))
+        const productTagIds = product.tags.map(t => t.id)
+        const productTagSlugs = product.tags.map(t => t.slug)
+        const hasSelectedTag = selectedTags.some((tagId) => 
+          productTagIds.includes(tagId) || productTagSlugs.includes(tagId)
+        )
         if (!hasSelectedTag) return false
       }
 
@@ -151,12 +181,33 @@ export function ProductsPage() {
     })
 
     return filtered
-  }, [products, selectedCategories, selectedTags, sortOption, searchQuery])
+  }, [products, selectedSubcategories, expandedCategoryId, selectedTags, sortOption, searchQuery])
 
-  const toggleCategory = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-    )
+  const toggleSubcategory = (subcategoryId: string) => {
+    setSelectedSubcategories((prev) => {
+      // Check if subcategory is already selected (by ID or slug)
+      const subcategory = categoriesWithSubcategories
+        .flatMap(c => c.subcategories || [])
+        .find(s => s.id === subcategoryId || s.slug === subcategoryId)
+      
+      const isSelected = prev.some((id) => 
+        id === subcategoryId || 
+        id === subcategory?.id || 
+        id === subcategory?.slug
+      )
+      
+      if (isSelected) {
+        // Remove subcategory (by ID or slug)
+        return prev.filter((id) => 
+          id !== subcategoryId && 
+          id !== subcategory?.id && 
+          id !== subcategory?.slug
+        )
+      } else {
+        // Add subcategory
+        return [...prev, subcategoryId]
+      }
+    })
   }
 
   const toggleTag = (tag: string) => {
@@ -166,28 +217,46 @@ export function ProductsPage() {
   }
 
   const clearFilters = () => {
-    setSelectedCategories([])
+    setSelectedSubcategories([])
     setSelectedTags([])
+    setExpandedCategoryId(null)
     setSearchQuery('')
     setSortOption('newest')
   }
 
   const activeFilters = [
-    ...selectedCategories.map((cat) => ({
+    // Show expanded category as filter only when no subcategories are selected
+    ...(expandedCategoryId && selectedSubcategories.length === 0 ? [{
       type: 'category' as const,
-      label: cat.charAt(0) + cat.slice(1).toLowerCase(),
-      value: cat,
-    })),
-    ...selectedTags.map((tag) => ({
-      type: 'tag' as const,
-      label: tag.charAt(0).toUpperCase() + tag.slice(1).replace('-', ' '),
-      value: tag,
-    })),
+      label: categoriesWithSubcategories.find(c => c.id === expandedCategoryId || c.slug === expandedCategoryId)?.name || expandedCategoryId,
+      value: expandedCategoryId,
+    }] : []),
+    ...selectedSubcategories.map((subcatId) => {
+      const subcategory = categoriesWithSubcategories
+        .flatMap(c => c.subcategories || [])
+        .find(s => s.id === subcatId || s.slug === subcatId)
+      return {
+        type: 'subcategory' as const,
+        label: subcategory?.name || subcatId,
+        value: subcatId,
+      }
+    }),
+    ...selectedTags.map((tagId) => {
+      const tag = tags.find(t => t.id === tagId || t.slug === tagId)
+      return {
+        type: 'tag' as const,
+        label: tag?.name || tagId,
+        value: tagId,
+      }
+    }),
   ]
 
-  const removeFilter = (type: 'category' | 'tag', value: string) => {
+  const removeFilter = (type: 'category' | 'subcategory' | 'tag', value: string) => {
     if (type === 'category') {
-      setSelectedCategories((prev) => prev.filter((c) => c !== value))
+      // Collapse the category when removing the filter
+      setExpandedCategoryId(null)
+    } else if (type === 'subcategory') {
+      setSelectedSubcategories((prev) => prev.filter((id) => id !== value))
     } else {
       setSelectedTags((prev) => prev.filter((t) => t !== value))
     }
@@ -282,9 +351,9 @@ export function ProductsPage() {
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
             </svg>
             Filters
-            {(selectedCategories.length > 0 || selectedTags.length > 0 || searchQuery.length > 0) && (
+            {((expandedCategoryId && selectedSubcategories.length === 0) || selectedSubcategories.length > 0 || selectedTags.length > 0 || searchQuery.length > 0) && (
               <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-charcoal-900 text-beige-50 rounded-full">
-                {selectedCategories.length + selectedTags.length + (searchQuery.length > 0 ? 1 : 0)}
+                {(expandedCategoryId && selectedSubcategories.length === 0 ? 1 : 0) + selectedSubcategories.length + selectedTags.length + (searchQuery.length > 0 ? 1 : 0)}
               </span>
             )}
           </Button>
@@ -296,10 +365,12 @@ export function ProductsPage() {
           <FilterSidebar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            categories={categories}
-            selectedCategories={selectedCategories}
-            onToggleCategory={toggleCategory}
-            availableTags={availableTags}
+            categories={categoriesWithSubcategories}
+            selectedSubcategories={selectedSubcategories}
+            onToggleSubcategory={toggleSubcategory}
+            expandedCategoryId={expandedCategoryId}
+            onExpandedCategoryChange={setExpandedCategoryId}
+            availableTags={tags}
             selectedTags={selectedTags}
             onToggleTag={toggleTag}
             onClearFilters={clearFilters}
@@ -312,16 +383,18 @@ export function ProductsPage() {
           <FilterSidebar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            categories={categories}
-            selectedCategories={selectedCategories}
-            onToggleCategory={(cat) => {
-              toggleCategory(cat)
+            categories={categoriesWithSubcategories}
+            selectedSubcategories={selectedSubcategories}
+            onToggleSubcategory={(subcatId) => {
+              toggleSubcategory(subcatId)
               setIsMobileFilterOpen(false)
             }}
-            availableTags={availableTags}
+            expandedCategoryId={expandedCategoryId}
+            onExpandedCategoryChange={setExpandedCategoryId}
+            availableTags={tags}
             selectedTags={selectedTags}
-            onToggleTag={(tag) => {
-              toggleTag(tag)
+            onToggleTag={(tagId) => {
+              toggleTag(tagId)
               setIsMobileFilterOpen(false)
             }}
             onClearFilters={() => {

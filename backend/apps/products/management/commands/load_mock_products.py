@@ -2,7 +2,7 @@
 Management command to load mock products from fixtures.
 """
 from django.core.management.base import BaseCommand
-from apps.products.models import Product, ProductImage
+from apps.products.models import Product, ProductImage, Category, Subcategory, Tag
 
 
 MOCK_PRODUCTS = [
@@ -170,6 +170,15 @@ class Command(BaseCommand):
         created_count = 0
         skipped_count = 0
 
+        # Category mapping: old string values to Category objects
+        category_mapping = {
+            'COOKIE': ('cookie', 'Cookie'),
+            'SNACK': ('snack', 'Snack'),
+            'CAKE': ('cake', 'Cake'),
+            'SWEET': ('sweet', 'Sweet'),
+            'HAMPER': ('hamper', 'Hamper'),
+        }
+
         for product_data in MOCK_PRODUCTS:
             slug = product_data['slug']
             
@@ -181,6 +190,48 @@ class Command(BaseCommand):
                 skipped_count += 1
                 continue
 
+            # Get or create category
+            category_value = product_data['category']
+            if category_value not in category_mapping:
+                self.stdout.write(
+                    self.style.ERROR(f'Unknown category "{category_value}" for product "{product_data["name"]}". Skipping.')
+                )
+                skipped_count += 1
+                continue
+
+            category_slug, category_name = category_mapping[category_value]
+            category, _ = Category.objects.get_or_create(
+                slug=category_slug,
+                defaults={
+                    'name': category_name,
+                    'is_active': True,
+                }
+            )
+
+            # Get or create default subcategory for this category
+            subcategory, _ = Subcategory.objects.get_or_create(
+                category=category,
+                slug='default',
+                defaults={
+                    'name': f'{category_name} - Default',
+                    'is_active': True,
+                    'order': 0,
+                }
+            )
+
+            # Get or create tags
+            tag_objects = []
+            for tag_name in product_data['tags']:
+                tag_slug = tag_name.lower().replace(' ', '-').replace('_', '-')
+                tag, _ = Tag.objects.get_or_create(
+                    slug=tag_slug,
+                    defaults={
+                        'name': tag_name,
+                        'is_active': True,
+                    }
+                )
+                tag_objects.append(tag)
+
             # Create product
             product = Product.objects.create(
                 slug=slug,
@@ -188,11 +239,15 @@ class Command(BaseCommand):
                 description=product_data['description'],
                 price=product_data['price'],
                 currency=product_data['currency'],
-                category=product_data['category'],
-                tags=','.join(product_data['tags']),
+                category=category,
+                subcategory=subcategory,
                 is_available=product_data['is_available'],
                 weight_grams=product_data.get('weight_grams'),
             )
+
+            # Set tags (ManyToMany)
+            if tag_objects:
+                product.tags.set(tag_objects)
 
             # Create product images
             for order, image_url in enumerate(product_data['images'], start=0):
