@@ -3,7 +3,15 @@ Admin configuration for products app.
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Product, ProductImage
+from .models import Product, ProductImage, Category, Subcategory, Tag
+
+
+class SubcategoryInline(admin.TabularInline):
+    """Inline admin for subcategories."""
+    model = Subcategory
+    extra = 1
+    fields = ['name', 'slug', 'order', 'is_active']
+    ordering = ['order']
 
 
 class ProductImageInline(admin.TabularInline):
@@ -14,19 +22,117 @@ class ProductImageInline(admin.TabularInline):
     ordering = ['order']
 
 
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    """Admin for categories."""
+    inlines = [SubcategoryInline]
+    list_display = ['name', 'slug', 'order', 'is_active', 'product_count', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ['order', 'name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('id', 'name', 'slug', 'description')
+        }),
+        ('Settings', {
+            'fields': ('is_active', 'order')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def product_count(self, obj):
+        """Display number of products in this category."""
+        try:
+            return obj.products.count()
+        except Exception:
+            return 0
+    product_count.short_description = 'Products'
+
+
+@admin.register(Subcategory)
+class SubcategoryAdmin(admin.ModelAdmin):
+    """Admin for subcategories."""
+    list_display = ['name', 'category', 'slug', 'order', 'is_active', 'product_count', 'created_at']
+    list_filter = ['category', 'is_active', 'created_at']
+    search_fields = ['name', 'description', 'category__name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ['category', 'order', 'name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('id', 'category', 'name', 'slug', 'description')
+        }),
+        ('Settings', {
+            'fields': ('is_active', 'order')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def product_count(self, obj):
+        """Display number of products in this subcategory."""
+        try:
+            return obj.products.count()
+        except Exception:
+            return 0
+    product_count.short_description = 'Products'
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    """Admin for tags."""
+    list_display = ['name', 'slug', 'is_active', 'product_count', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ['name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('id', 'name', 'slug', 'description')
+        }),
+        ('Settings', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def product_count(self, obj):
+        """Display number of products with this tag."""
+        try:
+            return obj.products.count()
+        except Exception:
+            return 0
+    product_count.short_description = 'Products'
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     """User-friendly product admin."""
     inlines = [ProductImageInline]
-    list_display = ['name', 'category', 'price', 'currency', 'is_available', 'created_at', 'image_preview']
-    list_filter = ['category', 'is_available', 'created_at']
+    list_display = ['name', 'category', 'subcategory', 'price', 'currency', 'is_available', 'created_at', 'image_preview']
+    list_filter = ['category', 'subcategory', 'is_available', 'tags', 'created_at']
     search_fields = ['name', 'description']
     readonly_fields = ['id', 'created_at', 'updated_at', 'tags_display']
     prepopulated_fields = {'slug': ('name',)}
+    filter_horizontal = ['tags']
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'slug', 'description', 'category')
+            'fields': ('id', 'name', 'slug', 'description', 'category', 'subcategory')
         }),
         ('Pricing', {
             'fields': ('price', 'currency', 'weight_grams')
@@ -44,8 +150,8 @@ class ProductAdmin(admin.ModelAdmin):
     
     def tags_display(self, obj):
         """Display tags as comma-separated list."""
-        tags = obj.get_tags_list()
-        return ', '.join(tags) if tags else '-'
+        tags = obj.tags.all()
+        return ', '.join([tag.name for tag in tags]) if tags else '-'
     tags_display.short_description = 'Tags (Preview)'
     
     def image_preview(self, obj):
