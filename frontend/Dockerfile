@@ -6,13 +6,13 @@ FROM node:20-slim as builder
 WORKDIR /app
 
 # Copy package files
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY package.json package-lock.json* ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy application code
-COPY frontend/ .
+COPY . .
 
 # Build the application
 RUN npm run build
@@ -24,7 +24,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy custom nginx configuration for SPA routing
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

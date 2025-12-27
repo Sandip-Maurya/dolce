@@ -58,6 +58,15 @@ dist/
 build/
 *.egg-info/
 
+# Frontend build artifacts (not needed in build context)
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/
+
+# Backend (not needed for frontend build)
+backend/
+!backend/Dockerfile
+
 # SSL certificates
 nginx/ssl/
 

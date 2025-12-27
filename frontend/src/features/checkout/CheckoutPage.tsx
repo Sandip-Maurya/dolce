@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { Container } from '../../components/Container'
 import { SectionTitle } from '../../components/SectionTitle'
 import { Button } from '../../components/Button'
 import { useCart } from '../../lib/hooks/useCart'
 import { usePlaceOrder, type PlaceOrderData } from '../../lib/hooks/useOrders'
-import { useUser, useProfile } from '../../lib/hooks/useAuth'
+import { useUser, useProfile, useUpdateProfile } from '../../lib/hooks/useAuth'
 import { PaymentSection } from './PaymentSection'
+import type { UpdateProfileData } from '../../lib/api/endpoints/auth'
 
 type Step = 1 | 2 | 3
 
@@ -16,8 +18,11 @@ export function CheckoutPage() {
   const placeOrderMutation = usePlaceOrder()
   const { data: user } = useUser()
   const { data: profile } = useProfile()
+  const updateProfileMutation = useUpdateProfile()
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [orderForSomeoneElse, setOrderForSomeoneElse] = useState(false)
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [saveToProfile, setSaveToProfile] = useState(false) // Option to save address when ordering for someone else
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null)
 
   // Form state
@@ -53,7 +58,7 @@ export function CheckoutPage() {
 
   // Pre-fill from profile when user is logged in and profile is loaded
   useEffect(() => {
-    if (user && profile && !orderForSomeoneElse) {
+    if (user && profile && !orderForSomeoneElse && !isEditingProfile) {
       setCustomerDetails({
         name: profile.name || '',
         email: profile.email || user.email || '',
@@ -69,9 +74,9 @@ export function CheckoutPage() {
         })
       }
     }
-  }, [user, profile, orderForSomeoneElse])
+  }, [user, profile, orderForSomeoneElse, isEditingProfile])
 
-  const validateStep1 = (): boolean => {
+  const validateStep1 = (): { isValid: boolean; errors: Record<string, string> } => {
     const newErrors: Record<string, string> = {}
 
     if (!customerDetails.name.trim()) {
@@ -103,12 +108,85 @@ export function CheckoutPage() {
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return { isValid: Object.keys(newErrors).length === 0, errors: newErrors }
   }
 
   const handleNext = () => {
     if (currentStep === 1) {
-      if (validateStep1()) {
+      const validation = validateStep1()
+      if (!validation.isValid) {
+        // If form is hidden (using profile), show toast with missing fields
+        if (user && profile && !orderForSomeoneElse && !isEditingProfile) {
+          const missingFields = Object.keys(validation.errors)
+          if (missingFields.length > 0) {
+            const fieldLabels: Record<string, string> = {
+              name: 'Name',
+              email: 'Email',
+              phone: 'Phone',
+              street: 'Street Address',
+              city: 'City',
+              state: 'State',
+              zipCode: 'ZIP Code',
+            }
+            const missingLabels = missingFields.map(f => fieldLabels[f] || f)
+            toast.error(
+              `Please complete your profile. Missing: ${missingLabels.join(', ')}. Click "Edit" to update your information.`,
+              {
+                duration: 5000,
+              }
+            )
+          }
+        } else {
+          // Show validation errors for visible form
+          const errorMessages = Object.values(validation.errors)
+          if (errorMessages.length > 0) {
+            toast.error(`Please fix the following: ${errorMessages[0]}`, {
+              duration: 4000,
+            })
+          }
+        }
+        return
+      }
+      // Save profile if editing or if user wants to save when ordering for someone else
+      const shouldSaveProfile = isEditingProfile || (orderForSomeoneElse && saveToProfile && user)
+      
+      if (shouldSaveProfile) {
+        const updateData: UpdateProfileData = {
+          // Only save phone when editing own profile, not when ordering for someone else
+          phone: isEditingProfile ? (customerDetails.phone || undefined) : undefined,
+          shippingAddress: {
+            street: shippingAddress.street,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            zipCode: shippingAddress.zipCode,
+            country: shippingAddress.country,
+          },
+        }
+
+        updateProfileMutation.mutate(updateData, {
+          onSuccess: () => {
+            if (isEditingProfile) {
+              setIsEditingProfile(false)
+              toast.success('Profile updated successfully')
+            } else {
+              toast.success('Shipping address saved to profile')
+            }
+            setCurrentStep(2)
+          },
+          onError: (error) => {
+            toast.error(error instanceof Error ? error.message : 'Failed to save profile')
+            // Still proceed to next step even if save fails
+            if (isEditingProfile) {
+              setIsEditingProfile(false)
+            }
+            setCurrentStep(2)
+          },
+        })
+      } else {
+        // If editing profile, exit edit mode when validation passes
+        if (isEditingProfile) {
+          setIsEditingProfile(false)
+        }
         setCurrentStep(2)
       }
     } else if (currentStep === 2) {
@@ -262,9 +340,47 @@ export function CheckoutPage() {
             {/* Step 1: Customer Details & Address */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-heading text-charcoal-900 mb-6">
-                  Customer Details & Address
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-heading text-charcoal-900">
+                    Customer Details & Address
+                  </h2>
+                  {isEditingProfile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingProfile(false)
+                        // Reset to profile data
+                        if (user && profile) {
+                          setCustomerDetails({
+                            name: profile.name || '',
+                            email: profile.email || user.email || '',
+                            phone: profile.phone || '',
+                          })
+                          if (profile.shippingAddress) {
+                            setShippingAddress({
+                              street: profile.shippingAddress.street || '',
+                              city: profile.shippingAddress.city || '',
+                              state: profile.shippingAddress.state || '',
+                              zipCode: profile.shippingAddress.zipCode || '',
+                              country: profile.shippingAddress.country || 'India',
+                            })
+                          }
+                          setErrors({})
+                        }
+                      }}
+                      className="text-sm text-charcoal-600 hover:text-charcoal-900 underline"
+                    >
+                      Cancel Editing
+                    </button>
+                  )}
+                </div>
+                {isEditingProfile && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-blue-900">
+                      <span className="font-medium">Editing mode:</span> You're updating your profile information. Changes will be saved to your profile when you continue.
+                    </p>
+                  </div>
+                )}
 
                 {/* Order for someone else checkbox - only show if user is logged in */}
                 {user && profile && (
@@ -275,6 +391,7 @@ export function CheckoutPage() {
                         checked={orderForSomeoneElse}
                         onChange={(e) => {
                           setOrderForSomeoneElse(e.target.checked)
+                          setIsEditingProfile(false) // Reset edit mode when toggling this
                           // Clear form if unchecking
                           if (!e.target.checked && profile) {
                             setCustomerDetails({
@@ -310,27 +427,48 @@ export function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Show profile summary if not ordering for someone else and profile exists */}
-                {user && profile && !orderForSomeoneElse && (
+                {/* Show profile summary if not ordering for someone else, not editing, and profile exists */}
+                {user && profile && !orderForSomeoneElse && !isEditingProfile && (
                   <div className="bg-beige-50 border border-beige-200 rounded-lg p-4 mb-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-charcoal-900 mb-2">
                           Using your profile information
                         </p>
+                        {/* Show validation errors even when form is hidden */}
+                        {Object.keys(errors).length > 0 && (
+                          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm font-medium text-red-900 mb-2">
+                              Please complete the following information:
+                            </p>
+                            <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                              {errors.name && <li>{errors.name}</li>}
+                              {errors.email && <li>{errors.email}</li>}
+                              {errors.phone && <li>{errors.phone}</li>}
+                              {errors.street && <li>{errors.street}</li>}
+                              {errors.city && <li>{errors.city}</li>}
+                              {errors.state && <li>{errors.state}</li>}
+                              {errors.zipCode && <li>{errors.zipCode}</li>}
+                            </ul>
+                          </div>
+                        )}
                         <div className="text-sm text-charcoal-700 space-y-1">
                           <p>
-                            <span className="font-medium">Name:</span> {customerDetails.name}
+                            <span className="font-medium">Name:</span> {customerDetails.name || <span className="text-red-600">(Missing)</span>}
                           </p>
                           <p>
-                            <span className="font-medium">Email:</span> {customerDetails.email}
+                            <span className="font-medium">Email:</span> {customerDetails.email || <span className="text-red-600">(Missing)</span>}
                           </p>
-                          {customerDetails.phone && (
+                          {customerDetails.phone ? (
                             <p>
                               <span className="font-medium">Phone:</span> {customerDetails.phone}
                             </p>
+                          ) : (
+                            <p>
+                              <span className="font-medium">Phone:</span> <span className="text-red-600">(Missing)</span>
+                            </p>
                           )}
-                          {shippingAddress.street && (
+                          {shippingAddress.street ? (
                             <div className="mt-2 pt-2 border-t border-beige-300">
                               <p className="font-medium mb-1">Shipping Address:</p>
                               <p className="text-charcoal-600">
@@ -342,21 +480,41 @@ export function CheckoutPage() {
                                 {shippingAddress.country}
                               </p>
                             </div>
+                          ) : (
+                            <div className="mt-2 pt-2 border-t border-beige-300">
+                              <p className="font-medium mb-1">Shipping Address:</p>
+                              <p className="text-red-600">(Missing - Please add shipping address)</p>
+                            </div>
                           )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setOrderForSomeoneElse(true)}
-                        className="text-sm text-charcoal-600 hover:text-charcoal-900 underline"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingProfile(true)
+                            setOrderForSomeoneElse(false)
+                          }}
+                          className="text-sm text-charcoal-600 hover:text-charcoal-900 underline"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOrderForSomeoneElse(true)
+                            setIsEditingProfile(false)
+                          }}
+                          className="text-sm text-charcoal-600 hover:text-charcoal-900 underline"
+                        >
+                          Order for Someone Else
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className={`space-y-4 ${user && profile && !orderForSomeoneElse ? 'hidden' : ''}`}>
+                <div className={`space-y-4 ${user && profile && !orderForSomeoneElse && !isEditingProfile ? 'hidden' : ''}`}>
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-charcoal-700 mb-2">
                       Full Name *
@@ -388,11 +546,11 @@ export function CheckoutPage() {
                       onChange={(e) =>
                         setCustomerDetails({ ...customerDetails, email: e.target.value })
                       }
-                      disabled={user && !orderForSomeoneElse}
+                      disabled={user && !orderForSomeoneElse && !isEditingProfile}
                       className={`w-full px-4 py-2 rounded-lg border ${
                         errors.email ? 'border-red-500' : 'border-beige-300'
                       } focus:outline-none focus:ring-2 focus:ring-charcoal-500 ${
-                        user && !orderForSomeoneElse ? 'bg-beige-50 cursor-not-allowed' : ''
+                        user && !orderForSomeoneElse && !isEditingProfile ? 'bg-beige-50 cursor-not-allowed' : ''
                       }`}
                     />
                     {errors.email && (
@@ -423,7 +581,7 @@ export function CheckoutPage() {
                     )}
                   </div>
 
-                  <div className={`border-t border-beige-200 pt-6 mt-6 ${user && profile && !orderForSomeoneElse ? 'hidden' : ''}`}>
+                  <div className={`border-t border-beige-200 pt-6 mt-6 ${user && profile && !orderForSomeoneElse && !isEditingProfile ? 'hidden' : ''}`}>
                     <h3 className="text-lg font-heading text-charcoal-900 mb-4">
                       Shipping Address
                     </h3>
@@ -532,11 +690,38 @@ export function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Option to save address to profile when ordering for someone else */}
+                {orderForSomeoneElse && user && (
+                  <div className="bg-beige-50 border border-beige-200 rounded-lg p-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveToProfile}
+                        onChange={(e) => setSaveToProfile(e.target.checked)}
+                        className="w-5 h-5 text-charcoal-900 border-beige-300 rounded focus:ring-2 focus:ring-charcoal-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-charcoal-900">
+                          Save this shipping address to my profile
+                        </span>
+                        <p className="text-xs text-charcoal-600 mt-1">
+                          This will update your profile with the recipient's shipping address for future orders
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-4 pt-6 border-t border-beige-200">
                   <Button variant="secondary" onClick={() => navigate('/cart')}>
                     Back to Cart
                   </Button>
-                  <Button variant="primary" onClick={handleNext}>
+                  <Button 
+                    variant="primary" 
+                    onClick={handleNext}
+                    isLoading={updateProfileMutation.isPending}
+                    disabled={updateProfileMutation.isPending}
+                  >
                     Continue
                   </Button>
                 </div>
