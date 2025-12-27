@@ -37,10 +37,12 @@ dolce/
 
 This project uses a three-branch workflow:
 
-### 1. **main** branch
+### 1. **main** branch (Default Branch)
 - Primary development branch
+- Default branch on GitHub (for cloning and new contributors)
 - Work happens here
 - No automatic deployments
+- **Note**: For deployments, always explicitly clone the target branch (`dev` or `prod`)
 
 ### 2. **dev** branch
 - Staging environment
@@ -101,7 +103,7 @@ git push origin prod
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Sandip-Maurya/dolce.git
 cd dolce
 ```
 
@@ -158,7 +160,16 @@ The application will be available at:
 
 2. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   # For development server - clone dev branch
+   git clone -b dev https://github.com/Sandip-Maurya/dolce.git
+   cd dolce
+   
+   # For production server - clone prod branch
+   git clone -b prod https://github.com/Sandip-Maurya/dolce.git
+   cd dolce
+   
+   # For local development - clone main branch (default)
+   git clone https://github.com/Sandip-Maurya/dolce.git
    cd dolce
    ```
 
@@ -186,16 +197,30 @@ The application will be available at:
 ### Development Server Deployment
 
 ```bash
-# On the dev server
+# On the dev server - clone dev branch directly
+git clone -b dev https://github.com/Sandip-Maurya/dolce.git
+cd dolce
+
+# Or if already cloned, switch to dev branch
 git checkout dev
+git pull origin dev
+
+# Deploy
 ./scripts/deploy-dev.sh
 ```
 
 ### Production Server Deployment
 
 ```bash
-# On the production server
+# On the production server - clone prod branch directly
+git clone -b prod https://github.com/Sandip-Maurya/dolce.git
+cd dolce
+
+# Or if already cloned, switch to prod branch
 git checkout prod
+git pull origin prod
+
+# Deploy
 ./scripts/deploy-prod.sh
 ```
 
