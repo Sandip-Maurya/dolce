@@ -10,7 +10,12 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     libpq-dev \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install gosu for dropping privileges
+RUN curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/1.16/gosu-$(dpkg --print-architecture)" \
+    && chmod +x /usr/local/bin/gosu
 
 # Install Python dependencies
 RUN uv pip install --system \
@@ -32,16 +37,22 @@ RUN useradd -m -u 1000 django && \
 # Set working directory
 WORKDIR /app
 
-# Copy application code
+# Copy application code and entrypoint script
 COPY --chown=django:django backend/ .
+COPY --chown=root:root backend/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
-# Switch to non-root user
-USER django
+# Set entrypoint (runs as root to fix permissions, then switches to django user)
+# Entrypoint runs as root by default, fixes permissions, then uses gosu to switch to django user
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Note: We don't set USER here because entrypoint needs to run as root to fix permissions
+# The entrypoint script will switch to django user using gosu
 
 # Expose port
 EXPOSE 8000
