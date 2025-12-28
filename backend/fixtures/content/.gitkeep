@@ -1,0 +1,3 @@
+# Content fixtures (products, blogs, testimonials - optional to commit if < 1MB)
+# Large data exports should be transferred via SCP/rsync instead of git
+
