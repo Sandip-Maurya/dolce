@@ -37,10 +37,19 @@ RUN useradd -m -u 1000 django && \
 # Set working directory
 WORKDIR /app
 
-# Copy application code and entrypoint script
+# Copy application code
 COPY --chown=django:django backend/ .
-COPY --chown=root:root backend/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Create entrypoint script inline to fix permissions on mounted volumes
+# This runs as root on container start, fixes permissions, then switches to django user
+RUN echo '#!/bin/bash' > /usr/local/bin/docker-entrypoint.sh && \
+    echo 'set -e' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ -d "/app/staticfiles" ]; then echo "Fixing permissions for staticfiles directory..."; chown -R django:django /app/staticfiles 2>/dev/null || true; chmod -R 755 /app/staticfiles 2>/dev/null || true; fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ -d "/app/media" ]; then echo "Fixing permissions for media directory..."; chown -R django:django /app/media 2>/dev/null || true; chmod -R 755 /app/media 2>/dev/null || true; fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ -d "/app/logs" ]; then echo "Fixing permissions for logs directory..."; chown -R django:django /app/logs 2>/dev/null || true; chmod -R 755 /app/logs 2>/dev/null || true; fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'exec gosu django "$@"' >> /usr/local/bin/docker-entrypoint.sh && \
+    chown root:root /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
