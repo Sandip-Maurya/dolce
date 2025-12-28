@@ -20,7 +20,8 @@ services:
         python manage.py migrate --noinput &&
         echo 'Collecting static files...' &&
         mkdir -p /app/staticfiles &&
-        python manage.py collectstatic --noinput || echo 'Warning: collectstatic failed, continuing anyway...' &&
+        python manage.py collectstatic --noinput &&
+        echo 'Static files collected successfully' &&
         gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
       "
 
