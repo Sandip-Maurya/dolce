@@ -17,6 +17,7 @@ from .models import (
     BlogPost,
     ContactSubmission,
     ContactInfo,
+    StoreCenter,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -29,6 +30,7 @@ from .serializers import (
     BlogPostSerializer,
     ContactSubmissionSerializer,
     ContactInfoSerializer,
+    StoreCenterSerializer,
 )
 
 
@@ -233,7 +235,29 @@ def contact_info_view(request):
         'id': None,
         'email': 'hello@dolcefiore.com',
         'phone': '+91 1234567890',
-        'response_message': 'We typically respond within 24-48 hours. For urgent matters, please call us directly.',
+        'additional_info': '',
+        'opening_hours_monday': '6:00 AM - 8:00 PM',
+        'opening_hours_tuesday': '6:00 AM - 8:00 PM',
+        'opening_hours_wednesday': '6:00 AM - 8:00 PM',
+        'opening_hours_thursday': '6:00 AM - 8:00 PM',
+        'opening_hours_friday': '6:00 AM - 8:00 PM',
+        'opening_hours_saturday': '6:00 AM - 8:00 PM',
+        'opening_hours_sunday': '6:00 AM - 8:00 PM',
     }
     return Response(default_data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='List store centers',
+    description='Get all active store centers ordered by order field',
+    responses={200: StoreCenterSerializer(many=True)},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def store_centers_view(request):
+    """Get all active store centers."""
+    queryset = StoreCenter.objects.filter(is_active=True).order_by('order')
+    serializer = StoreCenterSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 

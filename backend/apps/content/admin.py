@@ -14,6 +14,7 @@ from .models import (
     BlogPost,
     ContactSubmission,
     ContactInfo,
+    StoreCenter,
 )
 
 
@@ -405,17 +406,65 @@ class ContactSubmissionAdmin(admin.ModelAdmin):
     mark_as_unread.short_description = 'Mark selected submissions as unread'
 
 
+@admin.register(StoreCenter)
+class StoreCenterAdmin(admin.ModelAdmin):
+    """Admin for store centers."""
+    list_display = ['name', 'order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'address']
+    ordering = ['order', 'created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('id', 'name', 'address', 'google_map_link')
+        }),
+        ('Display Settings', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['make_active', 'make_inactive']
+    
+    def make_active(self, request, queryset):
+        """Bulk action to mark items as active."""
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} store center(s) marked as active.')
+    make_active.short_description = 'Mark selected store centers as active'
+    
+    def make_inactive(self, request, queryset):
+        """Bulk action to mark items as inactive."""
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} store center(s) marked as inactive.')
+    make_inactive.short_description = 'Mark selected store centers as inactive'
+
+
 @admin.register(ContactInfo)
 class ContactInfoAdmin(admin.ModelAdmin):
     """Admin for contact information."""
     list_display = ['email', 'phone', 'is_active', 'updated_at']
     list_filter = ['is_active', 'created_at', 'updated_at']
-    search_fields = ['email', 'phone', 'response_message']
+    search_fields = ['email', 'phone', 'additional_info']
     readonly_fields = ['id', 'created_at', 'updated_at']
     
     fieldsets = (
         ('Contact Information', {
-            'fields': ('id', 'email', 'phone', 'response_message')
+            'fields': ('id', 'email', 'phone', 'additional_info')
+        }),
+        ('Opening Hours', {
+            'fields': (
+                'opening_hours_monday',
+                'opening_hours_tuesday',
+                'opening_hours_wednesday',
+                'opening_hours_thursday',
+                'opening_hours_friday',
+                'opening_hours_saturday',
+                'opening_hours_sunday',
+            )
         }),
         ('Status', {
             'fields': ('is_active',)

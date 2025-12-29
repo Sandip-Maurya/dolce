@@ -84,11 +84,27 @@ export interface ContactFormResponse {
   message: string
 }
 
+export interface StoreCenter {
+  id: string
+  name: string
+  address: string
+  google_map_link: string
+  order: number
+  is_active: boolean
+}
+
 export interface ContactInfo {
   id: string | null
   email: string
   phone: string
-  response_message: string
+  additional_info: string
+  opening_hours_monday: string
+  opening_hours_tuesday: string
+  opening_hours_wednesday: string
+  opening_hours_thursday: string
+  opening_hours_friday: string
+  opening_hours_saturday: string
+  opening_hours_sunday: string
 }
 
 export const contentApi = {
@@ -112,5 +128,7 @@ export const contentApi = {
     apiClient.post<ContactFormResponse>('/content/contact/', data),
   fetchContactInfo: () =>
     apiClient.get<ContactInfo>('/content/contact-info/'),
+  fetchStoreCenters: () =>
+    apiClient.get<StoreCenter[]>('/content/store-centers/'),
 }
 

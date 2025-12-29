@@ -13,6 +13,7 @@ from .views import (
     blogs_view,
     contact_form_submission_view,
     contact_info_view,
+    store_centers_view,
 )
 
 app_name = 'content'
@@ -28,5 +29,6 @@ urlpatterns = [
     path('blogs/', blogs_view, name='blogs'),
     path('contact/', contact_form_submission_view, name='contact-submission'),
     path('contact-info/', contact_info_view, name='contact-info'),
+    path('store-centers/', store_centers_view, name='store-centers'),
 ]
 
