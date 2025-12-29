@@ -84,6 +84,13 @@ export interface ContactFormResponse {
   message: string
 }
 
+export interface ContactInfo {
+  id: string | null
+  email: string
+  phone: string
+  response_message: string
+}
+
 export const contentApi = {
   fetchSustainableGiftingItems: () =>
     apiClient.get<SustainableGiftingItem[]>('/content/sustainable-gifting/'),
@@ -103,5 +110,7 @@ export const contentApi = {
     apiClient.get<BlogPost[]>('/content/blogs/'),
   submitContactForm: (data: ContactFormData) =>
     apiClient.post<ContactFormResponse>('/content/contact/', data),
+  fetchContactInfo: () =>
+    apiClient.get<ContactInfo>('/content/contact-info/'),
 }
 

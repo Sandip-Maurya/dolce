@@ -12,6 +12,7 @@ from .models import (
     PhotoGalleryItem,
     BlogPost,
     ContactSubmission,
+    ContactInfo,
 )
 
 
@@ -180,4 +181,18 @@ class ContactSubmissionReadSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ContactInfoSerializer(serializers.ModelSerializer):
+    """Serializer for contact information."""
+    
+    class Meta:
+        model = ContactInfo
+        fields = [
+            'id',
+            'email',
+            'phone',
+            'response_message',
+        ]
+        read_only_fields = ['id']
 

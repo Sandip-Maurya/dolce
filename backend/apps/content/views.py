@@ -16,6 +16,7 @@ from .models import (
     PhotoGalleryItem,
     BlogPost,
     ContactSubmission,
+    ContactInfo,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -27,6 +28,7 @@ from .serializers import (
     PhotoGalleryItemSerializer,
     BlogPostSerializer,
     ContactSubmissionSerializer,
+    ContactInfoSerializer,
 )
 
 
@@ -208,4 +210,30 @@ def contact_form_submission_view(request):
         )
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get contact information',
+    description='Get active contact information, with default fallback if none exists',
+    responses={200: ContactInfoSerializer},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def contact_info_view(request):
+    """Get active contact information with default fallback."""
+    queryset = ContactInfo.objects.filter(is_active=True).first()
+    
+    if queryset:
+        serializer = ContactInfoSerializer(queryset)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # Default fallback content
+    default_data = {
+        'id': None,
+        'email': 'hello@dolcefiore.com',
+        'phone': '+91 1234567890',
+        'response_message': 'We typically respond within 24-48 hours. For urgent matters, please call us directly.',
+    }
+    return Response(default_data, status=status.HTTP_200_OK)
 

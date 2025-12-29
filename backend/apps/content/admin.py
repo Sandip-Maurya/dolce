@@ -13,6 +13,7 @@ from .models import (
     PhotoGalleryItem,
     BlogPost,
     ContactSubmission,
+    ContactInfo,
 )
 
 
@@ -402,4 +403,38 @@ class ContactSubmissionAdmin(admin.ModelAdmin):
         queryset.update(is_read=False)
         self.message_user(request, f'{queryset.count()} submission(s) marked as unread.')
     mark_as_unread.short_description = 'Mark selected submissions as unread'
+
+
+@admin.register(ContactInfo)
+class ContactInfoAdmin(admin.ModelAdmin):
+    """Admin for contact information."""
+    list_display = ['email', 'phone', 'is_active', 'updated_at']
+    list_filter = ['is_active', 'created_at', 'updated_at']
+    search_fields = ['email', 'phone', 'response_message']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Contact Information', {
+            'fields': ('id', 'email', 'phone', 'response_message')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        """Allow adding if no active contact info exists."""
+        return True
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion if it's the only active one."""
+        if obj and obj.is_active:
+            active_count = ContactInfo.objects.filter(is_active=True).count()
+            if active_count <= 1:
+                return False
+        return True
 
