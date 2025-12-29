@@ -13,7 +13,7 @@ dolce/
 │   ├── config/          # Django project configuration
 │   ├── manage.py
 │   ├── Dockerfile
-│   └── pyproject.toml
+│   └── requirements.txt
 ├── frontend/            # React + Vite frontend
 │   ├── src/
 │   ├── package.json

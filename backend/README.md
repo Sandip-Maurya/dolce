@@ -148,7 +148,7 @@ backend/
 │   └── content/        # Content management (home page sections: sustainable gifting, testimonials; About Us page: about us, our story, our commitment, photo gallery, blogs)
 ├── config/             # Django project settings
 ├── manage.py
-├── pyproject.toml      # uv project configuration
+├── requirements.txt    # Python dependencies
 └── README.md
 ```
 
