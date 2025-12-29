@@ -190,3 +190,36 @@ class BlogPost(models.Model):
     
     def __str__(self):
         return self.title
+
+
+class ContactSubmission(models.Model):
+    """Model for contact form submissions."""
+    SUBJECT_CHOICES = [
+        ('general', 'General Inquiry'),
+        ('product', 'Product Question'),
+        ('order', 'Order Support'),
+        ('partnership', 'Partnership'),
+        ('other', 'Other'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    subject = models.CharField(max_length=100, choices=SUBJECT_CHOICES)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'contact_submissions'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_read']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['email']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} - {self.get_subject_display()} ({self.created_at.strftime('%Y-%m-%d')})"

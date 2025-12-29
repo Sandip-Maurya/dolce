@@ -1,6 +1,6 @@
 # Multi-stage build for React frontend
 # Stage 1: Build the application
-FROM node:20-slim as builder
+FROM node:20-slim AS builder
 
 # Set working directory
 WORKDIR /app

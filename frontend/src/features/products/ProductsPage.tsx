@@ -210,6 +210,10 @@ export function ProductsPage() {
     })
   }
 
+  const clearSubcategories = () => {
+    setSelectedSubcategories([])
+  }
+
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -368,6 +372,7 @@ export function ProductsPage() {
             categories={categoriesWithSubcategories}
             selectedSubcategories={selectedSubcategories}
             onToggleSubcategory={toggleSubcategory}
+            onClearSubcategories={clearSubcategories}
             expandedCategoryId={expandedCategoryId}
             onExpandedCategoryChange={setExpandedCategoryId}
             availableTags={tags}
@@ -389,6 +394,7 @@ export function ProductsPage() {
               toggleSubcategory(subcatId)
               setIsMobileFilterOpen(false)
             }}
+            onClearSubcategories={clearSubcategories}
             expandedCategoryId={expandedCategoryId}
             onExpandedCategoryChange={setExpandedCategoryId}
             availableTags={tags}
