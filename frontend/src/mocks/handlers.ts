@@ -275,25 +275,10 @@ export const handlers = [
     }
   }),
 
-  // Payments endpoint
-  http.post('/api/payments/create-order', async ({ request }) => {
-    const body = await request.json() as { amount: number; currency: string; orderId?: string }
-    const { amount, currency } = body
-
-    if (!amount || amount <= 0) {
-      return HttpResponse.json(
-        { error: 'Valid amount is required' },
-        { status: 400 }
-      )
-    }
-
-    // Return mock payment order response
-    return HttpResponse.json({
-      paymentOrderId: `payment-order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      provider: 'RAZORPAY' as const,
-      amount,
-      currency: currency || 'INR',
-    }, { status: 201 })
-  }),
+  // Payments endpoint - DISABLED: Use real backend for payments
+  // http.post('/api/payments/create-order', async ({ request }) => {
+  //   // Payment should always go through real backend
+  //   // This mock is disabled to ensure real Razorpay integration works
+  // }),
 ]
 
