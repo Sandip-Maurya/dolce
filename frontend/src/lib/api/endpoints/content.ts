@@ -72,6 +72,18 @@ export interface BlogPost {
   is_active: boolean
 }
 
+export interface ContactFormData {
+  name: string
+  email: string
+  phone?: string
+  subject: 'general' | 'product' | 'order' | 'partnership' | 'other'
+  message: string
+}
+
+export interface ContactFormResponse {
+  message: string
+}
+
 export const contentApi = {
   fetchSustainableGiftingItems: () =>
     apiClient.get<SustainableGiftingItem[]>('/content/sustainable-gifting/'),
@@ -89,5 +101,7 @@ export const contentApi = {
     apiClient.get<PhotoGalleryItem[]>('/content/photo-gallery/'),
   fetchBlogs: () =>
     apiClient.get<BlogPost[]>('/content/blogs/'),
+  submitContactForm: (data: ContactFormData) =>
+    apiClient.post<ContactFormResponse>('/content/contact/', data),
 }
 

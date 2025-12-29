@@ -12,6 +12,7 @@ from .models import (
     OurCommitmentSection,
     PhotoGalleryItem,
     BlogPost,
+    ContactSubmission,
 )
 
 
@@ -359,4 +360,46 @@ class BlogPostAdmin(admin.ModelAdmin):
         queryset.update(is_active=False)
         self.message_user(request, f'{queryset.count()} post(s) marked as inactive.')
     make_inactive.short_description = 'Mark selected posts as inactive'
+
+
+@admin.register(ContactSubmission)
+class ContactSubmissionAdmin(admin.ModelAdmin):
+    """Admin for contact form submissions."""
+    list_display = ['name', 'email', 'subject_display', 'is_read', 'created_at']
+    list_filter = ['is_read', 'subject', 'created_at']
+    search_fields = ['name', 'email', 'message']
+    ordering = ['-created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Submission Information', {
+            'fields': ('id', 'name', 'email', 'phone', 'subject', 'message')
+        }),
+        ('Status', {
+            'fields': ('is_read',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_read', 'mark_as_unread']
+    
+    def subject_display(self, obj):
+        """Display subject choice label."""
+        return obj.get_subject_display()
+    subject_display.short_description = 'Subject'
+    
+    def mark_as_read(self, request, queryset):
+        """Bulk action to mark submissions as read."""
+        queryset.update(is_read=True)
+        self.message_user(request, f'{queryset.count()} submission(s) marked as read.')
+    mark_as_read.short_description = 'Mark selected submissions as read'
+    
+    def mark_as_unread(self, request, queryset):
+        """Bulk action to mark submissions as unread."""
+        queryset.update(is_read=False)
+        self.message_user(request, f'{queryset.count()} submission(s) marked as unread.')
+    mark_as_unread.short_description = 'Mark selected submissions as unread'
 

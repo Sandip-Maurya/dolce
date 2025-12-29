@@ -11,6 +11,7 @@ from .models import (
     OurCommitmentSection,
     PhotoGalleryItem,
     BlogPost,
+    ContactSubmission,
 )
 
 
@@ -132,4 +133,51 @@ class BlogPostSerializer(serializers.ModelSerializer):
             'order',
             'is_active',
         ]
+
+
+class ContactSubmissionSerializer(serializers.ModelSerializer):
+    """Serializer for contact form submissions."""
+    
+    class Meta:
+        model = ContactSubmission
+        fields = [
+            'id',
+            'name',
+            'email',
+            'phone',
+            'subject',
+            'message',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def validate_message(self, value):
+        """Validate message length."""
+        if len(value) < 10:
+            raise serializers.ValidationError("Message must be at least 10 characters long.")
+        if len(value) > 2000:
+            raise serializers.ValidationError("Message must be at most 2000 characters long.")
+        return value
+
+
+class ContactSubmissionReadSerializer(serializers.ModelSerializer):
+    """Serializer for reading contact submissions (admin use)."""
+    
+    subject_display = serializers.CharField(source='get_subject_display', read_only=True)
+    
+    class Meta:
+        model = ContactSubmission
+        fields = [
+            'id',
+            'name',
+            'email',
+            'phone',
+            'subject',
+            'subject_display',
+            'message',
+            'is_read',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 

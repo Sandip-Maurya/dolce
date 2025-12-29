@@ -11,6 +11,7 @@ from .views import (
     our_commitment_view,
     photo_gallery_view,
     blogs_view,
+    contact_form_submission_view,
 )
 
 app_name = 'content'
@@ -24,5 +25,6 @@ urlpatterns = [
     path('our-commitment/', our_commitment_view, name='our-commitment'),
     path('photo-gallery/', photo_gallery_view, name='photo-gallery'),
     path('blogs/', blogs_view, name='blogs'),
+    path('contact/', contact_form_submission_view, name='contact-submission'),
 ]
 

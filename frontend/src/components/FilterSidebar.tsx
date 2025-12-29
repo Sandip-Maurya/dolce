@@ -8,6 +8,7 @@ interface FilterSidebarProps {
   categories: CategoryWithSubcategories[]
   selectedSubcategories: string[]
   onToggleSubcategory: (subcategoryId: string) => void
+  onClearSubcategories: () => void
   expandedCategoryId: string | null
   onExpandedCategoryChange: (categoryId: string | null) => void
   availableTags: Tag[]
@@ -25,6 +26,7 @@ export function FilterSidebar({
   categories,
   selectedSubcategories,
   onToggleSubcategory,
+  onClearSubcategories,
   expandedCategoryId,
   onExpandedCategoryChange,
   availableTags,
@@ -128,8 +130,9 @@ export function FilterSidebar({
               const hasSubcategories = category.subcategories && category.subcategories.length > 0
               
               const handleCategoryClick = () => {
-                // If clicking a different category, collapse previous and expand new
+                // If clicking a different category, clear subcategories, collapse previous and expand new
                 if (expandedCategoryId !== category.id && expandedCategoryId !== category.slug) {
+                  onClearSubcategories()
                   onExpandedCategoryChange(category.id)
                 } else if (hasSubcategories) {
                   // Toggle expand/collapse only if category has subcategories
@@ -166,8 +169,8 @@ export function FilterSidebar({
                         const isSubcategorySelected = selectedSubcategories.some(
                           (id) => id === subcategory.id || id === subcategory.slug
                         )
-                        return (
-                          <button
+              return (
+                <button
                             key={subcategory.id}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -177,10 +180,10 @@ export function FilterSidebar({
                               isSubcategorySelected
                                 ? 'bg-charcoal-700 text-beige-50'
                                 : 'bg-beige-50 text-charcoal-600 hover:bg-beige-100'
-                            }`}
-                          >
+                  }`}
+                >
                             {subcategory.name}
-                          </button>
+                </button>
                         )
                       })}
                     </div>

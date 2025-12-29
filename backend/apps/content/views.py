@@ -15,6 +15,7 @@ from .models import (
     OurCommitmentSection,
     PhotoGalleryItem,
     BlogPost,
+    ContactSubmission,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -25,6 +26,7 @@ from .serializers import (
     OurCommitmentSectionSerializer,
     PhotoGalleryItemSerializer,
     BlogPostSerializer,
+    ContactSubmissionSerializer,
 )
 
 
@@ -183,4 +185,27 @@ def blogs_view(request):
     queryset = BlogPost.objects.filter(is_active=True).order_by('-published_date', 'order')
     serializer = BlogPostSerializer(queryset, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Submit contact form',
+    description='Submit a contact form message',
+    request=ContactSubmissionSerializer,
+    responses={201: ContactSubmissionSerializer},
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def contact_form_submission_view(request):
+    """Handle contact form submissions."""
+    serializer = ContactSubmissionSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        serializer.save()
+        return Response(
+            {'message': 'Thank you for contacting us! We will get back to you soon.'},
+            status=status.HTTP_201_CREATED
+        )
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
