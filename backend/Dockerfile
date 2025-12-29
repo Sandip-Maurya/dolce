@@ -11,25 +11,19 @@ RUN apt-get update && apt-get install -y \
     curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install uv using pip (simple)
-RUN pip install --no-cache-dir -U pip uv
-
-# Put the venv somewhere explicit (NOT /app/.venv)
-ENV UV_PROJECT_ENVIRONMENT=/opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip
 
 # App env
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
-# Copy dependency files first (better caching)
-COPY backend/pyproject.toml /app/pyproject.toml
-COPY backend/uv.lock /app/uv.lock
+# Copy dependency file first (better caching)
+COPY backend/requirements.txt /app/requirements.txt
 
-# Install deps into /opt/venv
-# The --frozen flag ensures we use the exact versions from uv.lock
-RUN uv sync --frozen --no-dev --no-install-project
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the backend code
 COPY backend/ /app/
 
