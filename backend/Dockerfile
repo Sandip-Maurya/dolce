@@ -29,9 +29,7 @@ COPY backend/uv.lock /app/uv.lock
 
 # Install deps into /opt/venv
 # The --frozen flag ensures we use the exact versions from uv.lock
-# Note: We install the project too, which is fine since we'll copy the code anyway
-RUN uv sync --frozen --no-dev
-
+RUN uv sync --frozen --no-dev --no-install-project
 # Copy the rest of the backend code
 COPY backend/ /app/
 
