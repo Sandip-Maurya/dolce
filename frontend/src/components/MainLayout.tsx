@@ -34,6 +34,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     { to: '/', label: 'Home' },
     { to: '/products', label: 'Products' },
     { to: '/about', label: 'About Us' },
+    { to: '/contact', label: 'Contact' },
     { to: '/orders', label: 'Orders' },
   ]
 

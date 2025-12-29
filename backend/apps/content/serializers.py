@@ -12,6 +12,8 @@ from .models import (
     PhotoGalleryItem,
     BlogPost,
     ContactSubmission,
+    ContactInfo,
+    StoreCenter,
 )
 
 
@@ -180,4 +182,40 @@ class ContactSubmissionReadSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class StoreCenterSerializer(serializers.ModelSerializer):
+    """Serializer for store centers."""
+    
+    class Meta:
+        model = StoreCenter
+        fields = [
+            'id',
+            'name',
+            'address',
+            'google_map_link',
+            'order',
+            'is_active',
+        ]
+
+
+class ContactInfoSerializer(serializers.ModelSerializer):
+    """Serializer for contact information."""
+    
+    class Meta:
+        model = ContactInfo
+        fields = [
+            'id',
+            'email',
+            'phone',
+            'additional_info',
+            'opening_hours_monday',
+            'opening_hours_tuesday',
+            'opening_hours_wednesday',
+            'opening_hours_thursday',
+            'opening_hours_friday',
+            'opening_hours_saturday',
+            'opening_hours_sunday',
+        ]
+        read_only_fields = ['id']
 

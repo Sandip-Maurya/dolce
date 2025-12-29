@@ -8,6 +8,8 @@ export const aboutUsKeys = {
   ourCommitment: () => [...aboutUsKeys.all, 'our-commitment'] as const,
   photoGallery: () => [...aboutUsKeys.all, 'photo-gallery'] as const,
   blogs: () => [...aboutUsKeys.all, 'blogs'] as const,
+  contactInfo: () => [...aboutUsKeys.all, 'contact-info'] as const,
+  storeCenters: () => [...aboutUsKeys.all, 'store-centers'] as const,
 }
 
 export function useAboutUs() {
@@ -42,6 +44,20 @@ export function useBlogs() {
   return useQuery({
     queryKey: aboutUsKeys.blogs(),
     queryFn: () => contentApi.fetchBlogs(),
+  })
+}
+
+export function useContactInfo() {
+  return useQuery({
+    queryKey: aboutUsKeys.contactInfo(),
+    queryFn: () => contentApi.fetchContactInfo(),
+  })
+}
+
+export function useStoreCenters() {
+  return useQuery({
+    queryKey: aboutUsKeys.storeCenters(),
+    queryFn: () => contentApi.fetchStoreCenters(),
   })
 }
 
