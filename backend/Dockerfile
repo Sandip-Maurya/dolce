@@ -24,11 +24,13 @@ ENV PYTHONPATH=/app
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
 # Copy dependency files first (better caching)
-COPY backend/pyproject.toml /app/
-COPY backend/uv.lock /app/
+COPY backend/pyproject.toml /app/pyproject.toml
+COPY backend/uv.lock /app/uv.lock
 
 # Install deps into /opt/venv
-RUN uv sync --frozen --no-dev --no-install-project
+# The --frozen flag ensures we use the exact versions from uv.lock
+# Note: We install the project too, which is fine since we'll copy the code anyway
+RUN uv sync --frozen --no-dev
 
 # Copy the rest of the backend code
 COPY backend/ /app/
