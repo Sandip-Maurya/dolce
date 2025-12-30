@@ -186,22 +186,22 @@ The application will be available at:
    
    ```bash
    # Install Certbot (if not already installed)
-   sudo apt-get update
-   sudo apt-get install certbot
+   sudo dnf update -y
+   sudo dnf install certbot
    
    # Stop nginx temporarily to get certificates (if nginx is running)
    # docker-compose down
    
    # Get certificates using Let's Encrypt
    # Replace with your actual domain names
-   sudo certbot certonly --standalone -d dev.yourdomain.com -d www.dev.yourdomain.com  # For dev
+   sudo certbot certonly --standalone -d kakshaonline.com -d www.kakshaonline.com  # For dev
    sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com          # For prod
    
    # Create nginx/ssl directory and copy certificates (optional - can also mount directly)
    mkdir -p nginx/ssl
    # For dev
-   sudo cp /etc/letsencrypt/live/dev.yourdomain.com/fullchain.pem nginx/ssl/fullchain.pem
-   sudo cp /etc/letsencrypt/live/dev.yourdomain.com/privkey.pem nginx/ssl/privkey.pem
+   sudo cp /etc/letsencrypt/live/kakshaonline.com/fullchain.pem nginx/ssl/fullchain.pem
+   sudo cp /etc/letsencrypt/live/kakshaonline.com/privkey.pem nginx/ssl/privkey.pem
    # For prod (on prod server)
    # sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem nginx/ssl/fullchain.pem
    # sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem nginx/ssl/privkey.pem
@@ -215,16 +215,16 @@ The application will be available at:
    Add the following to your `.env` file:
    ```bash
    # Domain configuration (required for dev and prod)
-   NGINX_DOMAIN=yourdomain.com
-   NGINX_DOMAIN_WWW=www.yourdomain.com
+   NGINX_DOMAIN=kakshaonline.com
+   NGINX_DOMAIN_WWW=www.kakshaonline.com
    
    # SSL certificate paths (optional - defaults shown)
    NGINX_SSL_CERT_PATH=/etc/nginx/ssl/fullchain.pem
    NGINX_SSL_KEY_PATH=/etc/nginx/ssl/privkey.pem
    
    # Or use Let's Encrypt paths directly:
-   # NGINX_SSL_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
-   # NGINX_SSL_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+   # NGINX_SSL_CERT_PATH=/etc/letsencrypt/live/kakshaonline.com/fullchain.pem
+   # NGINX_SSL_KEY_PATH=/etc/letsencrypt/live/kakshaonline.com/privkey.pem
    ```
    
    **Note**: For local development, these variables are not needed as it uses HTTP on localhost.
@@ -294,11 +294,11 @@ See `.env.example` for all available environment variables. Key variables:
 - `DEBUG`: `False` in production, `True` in development
 - `ALLOWED_HOSTS`: Comma-separated list of allowed hosts (include your domain)
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`: Database credentials
-- `CORS_ALLOWED_ORIGINS`: Frontend URL(s) for CORS (e.g., `https://yourdomain.com`)
+- `CORS_ALLOWED_ORIGINS`: Frontend URL(s) for CORS (e.g., `https://kakshaonline.com`)
 
 ### Nginx/Domain Variables (Required for dev and prod on EC2)
-- `NGINX_DOMAIN`: Primary domain name (e.g., `yourdomain.com` or `dev.yourdomain.com`)
-- `NGINX_DOMAIN_WWW`: WWW variant (e.g., `www.yourdomain.com` or `www.dev.yourdomain.com`)
+- `NGINX_DOMAIN`: Primary domain name (e.g., `kakshaonline.com` or `dev.kakshaonline.com`)
+- `NGINX_DOMAIN_WWW`: WWW variant (e.g., `www.kakshaonline.com` or `www.dev.kakshaonline.com`)
 - `NGINX_SSL_CERT_PATH`: Path to SSL certificate (default: `/etc/nginx/ssl/fullchain.pem`)
 - `NGINX_SSL_KEY_PATH`: Path to SSL private key (default: `/etc/nginx/ssl/privkey.pem`)
 
