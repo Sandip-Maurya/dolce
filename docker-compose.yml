@@ -76,12 +76,17 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./backend/staticfiles:/static:ro
       - ./backend/media:/media:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Mount SSL certificates from host Let's Encrypt directory
+      - /etc/letsencrypt/live/kakshaonline.com:/etc/nginx/ssl:ro
+      # Mount Certbot SSL configuration files
+      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl/options-ssl-nginx.conf:ro
+      - /etc/letsencrypt/ssl-dhparams.pem:/etc/nginx/ssl/ssl-dhparams.pem:ro
     depends_on:
       - backend
       - frontend
     networks:
       - dolce_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
