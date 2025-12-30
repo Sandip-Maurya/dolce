@@ -117,7 +117,8 @@ cp .env.example .env
 ### 3. Start services with Docker
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# For local development (HTTP only, localhost:8080)
+docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
 ```
 
 ### 4. Run migrations
@@ -179,22 +180,56 @@ The application will be available at:
    # Edit .env with production values
    ```
 
-4. **Set up SSL certificates (for production)**
-   ```bash
-   # Using Let's Encrypt with Certbot
-   certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+4. **Set up SSL certificates (for dev and prod environments)**
    
-   # Copy certificates to nginx/ssl/
+   For both dev and prod environments on EC2, you'll need SSL certificates:
+   
+   ```bash
+   # Install Certbot (if not already installed)
+   sudo apt-get update
+   sudo apt-get install certbot
+   
+   # Stop nginx temporarily to get certificates (if nginx is running)
+   # docker-compose down
+   
+   # Get certificates using Let's Encrypt
+   # Replace with your actual domain names
+   sudo certbot certonly --standalone -d dev.yourdomain.com -d www.dev.yourdomain.com  # For dev
+   sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com          # For prod
+   
+   # Create nginx/ssl directory and copy certificates (optional - can also mount directly)
    mkdir -p nginx/ssl
-   cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem nginx/ssl/
-   cp /etc/letsencrypt/live/yourdomain.com/privkey.pem nginx/ssl/
+   # For dev
+   sudo cp /etc/letsencrypt/live/dev.yourdomain.com/fullchain.pem nginx/ssl/fullchain.pem
+   sudo cp /etc/letsencrypt/live/dev.yourdomain.com/privkey.pem nginx/ssl/privkey.pem
+   # For prod (on prod server)
+   # sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem nginx/ssl/fullchain.pem
+   # sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem nginx/ssl/privkey.pem
+   
+   # Set proper permissions
+   sudo chown -R $USER:$USER nginx/ssl
    ```
 
-5. **Update nginx configuration**
-   - Edit `nginx/nginx.conf` and uncomment the HTTPS server block
-   - Update `server_name` with your domain
+5. **Configure environment variables for domain and SSL**
+   
+   Add the following to your `.env` file:
+   ```bash
+   # Domain configuration (required for dev and prod)
+   NGINX_DOMAIN=yourdomain.com
+   NGINX_DOMAIN_WWW=www.yourdomain.com
+   
+   # SSL certificate paths (optional - defaults shown)
+   NGINX_SSL_CERT_PATH=/etc/nginx/ssl/fullchain.pem
+   NGINX_SSL_KEY_PATH=/etc/nginx/ssl/privkey.pem
+   
+   # Or use Let's Encrypt paths directly:
+   # NGINX_SSL_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+   # NGINX_SSL_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+   ```
+   
+   **Note**: For local development, these variables are not needed as it uses HTTP on localhost.
 
-### Development Server Deployment
+### Development Server Deployment (EC2 with HTTPS)
 
 ```bash
 # On the dev server - clone dev branch directly
@@ -205,11 +240,17 @@ cd dolce
 git checkout dev
 git pull origin dev
 
-# Deploy
-./scripts/deploy-dev.sh
+# Configure environment variables in .env
+# Set NGINX_DOMAIN and NGINX_DOMAIN_WWW to your dev domain
+
+# Deploy with HTTPS support
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dev-https.yml up -d --build
+
+# Or use deployment script (if updated)
+# ./scripts/deploy-dev.sh
 ```
 
-### Production Server Deployment
+### Production Server Deployment (EC2 with HTTPS)
 
 ```bash
 # On the production server - clone prod branch directly
@@ -220,17 +261,26 @@ cd dolce
 git checkout prod
 git pull origin prod
 
+# Configure environment variables in .env
+# Set NGINX_DOMAIN and NGINX_DOMAIN_WWW to your production domain
+
 # Deploy
-./scripts/deploy-prod.sh
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# Or use deployment script (if updated)
+# ./scripts/deploy-prod.sh
 ```
 
-### Manual Deployment (Alternative)
+### Manual Deployment Commands
 
 ```bash
-# Development
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Local development (HTTP only, localhost:8080)
+docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 
-# Production
+# Development on EC2 (HTTPS with domain)
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dev-https.yml up -d --build
+
+# Production on EC2 (HTTPS with domain)
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
@@ -238,12 +288,21 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 See `.env.example` for all available environment variables. Key variables:
 
+### Django/Backend Variables
 - `SECRET_KEY`: Django secret key (generate a new one for production)
 - `DJANGO_ENV`: Set to `production` for production, `development` for dev
 - `DEBUG`: `False` in production, `True` in development
-- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
+- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts (include your domain)
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`: Database credentials
-- `CORS_ALLOWED_ORIGINS`: Frontend URL(s) for CORS
+- `CORS_ALLOWED_ORIGINS`: Frontend URL(s) for CORS (e.g., `https://yourdomain.com`)
+
+### Nginx/Domain Variables (Required for dev and prod on EC2)
+- `NGINX_DOMAIN`: Primary domain name (e.g., `yourdomain.com` or `dev.yourdomain.com`)
+- `NGINX_DOMAIN_WWW`: WWW variant (e.g., `www.yourdomain.com` or `www.dev.yourdomain.com`)
+- `NGINX_SSL_CERT_PATH`: Path to SSL certificate (default: `/etc/nginx/ssl/fullchain.pem`)
+- `NGINX_SSL_KEY_PATH`: Path to SSL private key (default: `/etc/nginx/ssl/privkey.pem`)
+
+**Note**: For local development, nginx domain variables are not required as it uses HTTP on localhost.
 
 ## Database Backups
 
@@ -311,7 +370,9 @@ docker-compose exec backend python manage.py shell
 
 ### Port already in use
 
-If port 80 or 8080 is already in use, modify the port mappings in `docker-compose.dev.yml` or `docker-compose.prod.yml`.
+If port 80, 443, or 8080 is already in use:
+- **Local**: Modify port mapping in `docker-compose.local.yml` (default: 8080:80)
+- **Dev/Prod**: Ensure ports 80 and 443 are available on your EC2 instance. You may need to stop other services using these ports.
 
 ### Database connection errors
 
@@ -328,6 +389,25 @@ If port 80 or 8080 is already in use, modify the port mappings in `docker-compos
 
 - Verify `CORS_ALLOWED_ORIGINS` in `.env` includes your frontend URL
 - Check that the frontend URL matches exactly (including protocol and port)
+- For HTTPS deployments, ensure the URL uses `https://` not `http://`
+
+### Nginx not serving app / Domain not working
+
+- Verify `NGINX_DOMAIN` and `NGINX_DOMAIN_WWW` are set in `.env` for dev/prod
+- Check that SSL certificates exist at the specified paths
+- Verify DNS records point to your EC2 instance IP
+- Check nginx logs: `docker-compose logs nginx`
+- Test nginx configuration: `docker-compose exec nginx nginx -t`
+
+### SSL certificate issues
+
+- Ensure certificates are valid and not expired: `sudo certbot certificates`
+- For Let's Encrypt renewal, set up a cron job:
+  ```bash
+  # Add to crontab (crontab -e)
+  0 0 * * * certbot renew --quiet && docker-compose restart nginx
+  ```
+- Verify certificate paths in `.env` match actual certificate locations
 
 ## Server Recommendations
 

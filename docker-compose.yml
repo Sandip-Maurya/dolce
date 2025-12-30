@@ -72,7 +72,11 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Mount templates (will be processed by init script)
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/nginx.dev-https.conf.template:/etc/nginx/nginx.dev-https.conf.template:ro
+      # Mount final config (will be generated from template)
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:rw
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./backend/staticfiles:/static:ro
       - ./backend/media:/media:ro
@@ -81,6 +85,15 @@ services:
       # Mount Certbot SSL configuration files to separate location (if they exist)
       - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl-config/options-ssl-nginx.conf:ro
       - /etc/letsencrypt/ssl-dhparams.pem:/etc/nginx/ssl-config/ssl-dhparams.pem:ro
+      # Mount init scripts
+      - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
+      - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/nginx-entrypoint.sh"]
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN:-}
+      - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW:-}
+      - NGINX_SSL_CERT_PATH=${NGINX_SSL_CERT_PATH:-/etc/nginx/ssl/fullchain.pem}
+      - NGINX_SSL_KEY_PATH=${NGINX_SSL_KEY_PATH:-/etc/nginx/ssl/privkey.pem}
     depends_on:
       - backend
       - frontend
