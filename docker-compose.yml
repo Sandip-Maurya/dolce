@@ -76,7 +76,9 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./backend/staticfiles:/static:ro
       - ./backend/media:/media:ro
-      # Mount SSL certificates from host Let's Encrypt directory
+      # Mount entire Let's Encrypt directory so symlinks work (certificates in live/ point to archive/)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Mount SSL certificates from host Let's Encrypt directory (symlinks will now resolve)
       - /etc/letsencrypt/live/kakshaonline.com:/etc/nginx/ssl:ro
       # Mount Certbot SSL configuration files to separate location
       - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl-config/options-ssl-nginx.conf:ro
