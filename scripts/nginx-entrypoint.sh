@@ -4,8 +4,9 @@
 set -e
 
 # Run the init script to process templates
+# Use sh to execute so we don't need execute permissions on the mounted file
 if [ -f "/scripts/init-nginx.sh" ]; then
-    /scripts/init-nginx.sh
+    sh /scripts/init-nginx.sh
 fi
 
 # Start nginx
