@@ -63,10 +63,6 @@ frontend/dist/
 frontend/.vite/
 frontend/node_modules/
 
-# Backend (not needed for frontend build)
-backend/
-!backend/Dockerfile
-!backend/requirements.txt
 
 # SSL certificates
 nginx/ssl/
