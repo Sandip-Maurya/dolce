@@ -1,0 +1,30 @@
+# Production HTTPS overrides for EC2 deployment
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up
+services:
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Use production HTTPS template
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:rw
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend/staticfiles:/static:ro
+      - ./backend/media:/media:ro
+      # Mount SSL certificates from Let's Encrypt
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Mount Let's Encrypt certificates directly (if available)
+      - /etc/letsencrypt/live:/etc/letsencrypt/live:ro
+      - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
+      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl-config/options-ssl-nginx.conf:ro
+      - /etc/letsencrypt/ssl-dhparams.pem:/etc/nginx/ssl-config/ssl-dhparams.pem:ro
+      # Mount init scripts
+      - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
+      - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN}
+      - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW}
+      - NGINX_SSL_CERT_PATH=${NGINX_SSL_CERT_PATH:-/etc/nginx/ssl/fullchain.pem}
+      - NGINX_SSL_KEY_PATH=${NGINX_SSL_KEY_PATH:-/etc/nginx/ssl/privkey.pem}
+

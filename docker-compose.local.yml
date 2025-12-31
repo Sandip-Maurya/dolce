@@ -1,0 +1,48 @@
+# Local development overrides for docker-compose.yml
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+# This uses HTTP only on localhost:8080 - no SSL or domain configuration needed
+services:
+  backend:
+    environment:
+      - DJANGO_ENV=development
+      - DEBUG=True
+    volumes:
+      - ./backend:/app
+      - ./backend/media:/app/media
+      - ./backend/staticfiles:/app/staticfiles
+      - ./backend/logs:/app/logs
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        python check_db.py &&
+        python manage.py migrate --noinput &&
+        echo 'Collecting static files...' &&
+        mkdir -p /app/staticfiles &&
+        python manage.py collectstatic --noinput &&
+        echo 'Static files collected successfully' &&
+        gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
+      "
+
+  frontend:
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      # Use static dev config (no template processing needed for local)
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend/staticfiles:/static:ro
+      - ./backend/media:/media:ro
+    # Override entrypoint to skip template processing for local
+    entrypoint: ["nginx", "-g", "daemon off;"]
+
+  db:
+    ports:
+      - "5432:5432"
+
