@@ -988,6 +988,69 @@ If port 80, 443, or 8080 is already in use:
   0 0 * * * certbot renew --quiet && docker-compose restart nginx
   ```
 - Verify certificate paths in `.env` match actual certificate locations
+- **Certificate path errors**: If nginx logs show "cannot load certificate" errors:
+  ```bash
+  # Check where your certificates are located
+  sudo ls -la /etc/letsencrypt/live/yourdomain.com/
+  
+  # Update .env to point to Let's Encrypt certificates (if using them)
+  NGINX_SSL_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+  NGINX_SSL_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+  ```
+
+### Docker exec errors
+
+If you get "current working directory is outside of container mount namespace root" when running commands:
+
+```bash
+# Use -T flag to disable pseudo-TTY
+docker compose exec -T backend python manage.py migrate
+
+# Or explicitly set working directory
+docker compose exec -w /app backend python manage.py migrate
+
+# Or use docker compose run (creates new container)
+docker compose run --rm backend python manage.py migrate
+```
+
+### Nginx container configuration errors
+
+**Issue: "cannot create subdirectories" or "mount: not a directory"**
+
+This happens when `nginx/nginx.conf` doesn't exist but Docker tries to mount it:
+```bash
+# For HTTPS deployments, create the file (will be populated by init script)
+touch nginx/nginx.conf
+
+# If it exists as a directory from a previous error, remove it first
+rm -rf nginx/nginx.conf
+touch nginx/nginx.conf
+```
+
+**Issue: "no 'events' section in configuration"**
+
+This means nginx.conf is empty. For HTTPS deployments, ensure you're using the correct compose files:
+```bash
+# HTTP dev (uses static config, no template processing)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# HTTPS dev (uses templates, requires init script)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dev-https.yml up -d
+```
+
+The `docker-compose.dev-https.yml` file includes the entrypoint to run the template processing script. Make sure you're using the correct combination of compose files.
+
+**Issue: Nginx container keeps restarting**
+
+Check nginx logs for specific errors:
+```bash
+docker compose logs nginx --tail=50
+```
+
+Common causes:
+- SSL certificates not found (see SSL certificate issues above)
+- Empty or malformed nginx.conf file
+- Template processing failed (check if `NGINX_DOMAIN` is set in `.env`)
 
 ## Server Recommendations
 
@@ -1234,6 +1297,15 @@ A: Ensure database container is running and healthy: `docker-compose ps`. Check 
 
 **Q: Domain not working / DNS issues**  
 A: Verify DNS records point to EC2 IP. Check with `dig yourdomain.com` or `nslookup yourdomain.com`. Wait for DNS propagation (can take up to 48 hours).
+
+**Q: Docker exec fails with "current working directory is outside of container mount namespace root"**  
+A: Use the `-T` flag: `docker compose exec -T backend python manage.py migrate`. See [Docker exec errors](#docker-exec-errors) in Troubleshooting.
+
+**Q: Nginx container shows "no 'events' section in configuration" or keeps restarting**  
+A: For HTTPS deployments, ensure you're using all three compose files: `docker-compose.yml`, `docker-compose.dev.yml`, and `docker-compose.dev-https.yml`. Check that `nginx/nginx.conf` exists (create it with `touch nginx/nginx.conf` if missing). See [Nginx container configuration errors](#nginx-container-configuration-errors) in Troubleshooting.
+
+**Q: Nginx shows "cannot load certificate" errors**  
+A: Verify SSL certificate paths in `.env` match actual certificate locations. For Let's Encrypt certificates, use: `NGINX_SSL_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem`. See [SSL certificate issues](#ssl-certificate-issues) in Troubleshooting.
 
 ## License
 
