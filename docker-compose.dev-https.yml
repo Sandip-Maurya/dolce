@@ -31,6 +31,8 @@ services:
       # Mount init scripts
       - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
       - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
+    # Override entrypoint to use template processing (generates config from template)
+    entrypoint: ["/bin/sh", "/scripts/nginx-entrypoint.sh"]
     environment:
       - NGINX_DOMAIN=${NGINX_DOMAIN}
       - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW}
