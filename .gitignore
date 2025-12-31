@@ -188,6 +188,13 @@ backend/content_data_export.json
 # SSL certificates
 nginx/ssl/
 
+# Generated nginx configuration (created from templates)
+nginx/nginx.conf
+
+# Custom deployment scripts (user-specific)
+update-ssl-certs.sh
+*.sh.local
+
 # Docker override files (if any)
 docker-compose.override.yml
 
