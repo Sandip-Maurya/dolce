@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dolce_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dolce_user} -d ${DB_NAME:-dolce_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,6 +42,18 @@ services:
     networks:
       - dolce_network
     restart: unless-stopped
+    # Default command - will be overridden by dev/prod compose files
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        python check_db.py &&
+        python manage.py migrate --noinput &&
+        echo 'Collecting static files...' &&
+        mkdir -p /app/staticfiles &&
+        python manage.py collectstatic --noinput &&
+        echo 'Static files collected successfully' &&
+        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile - config.wsgi:application
+      "
 
   frontend:
     build:
@@ -60,16 +72,34 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Mount templates (will be processed by init script)
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/nginx.dev-https.conf.template:/etc/nginx/nginx.dev-https.conf.template:ro
+      # Mount final config (will be generated from template)
+      # - ./nginx/nginx.conf:/etc/nginx/nginx.conf:rw
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./backend/staticfiles:/static:ro
       - ./backend/media:/media:ro
+      # Mount SSL certificates from local directory (copied from Let's Encrypt)
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Mount Certbot SSL configuration files to separate location (if they exist)
+      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl-config/options-ssl-nginx.conf:ro
+      - /etc/letsencrypt/ssl-dhparams.pem:/etc/nginx/ssl-config/ssl-dhparams.pem:ro
+      # Mount init scripts
+      - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
+      - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/nginx-entrypoint.sh"]
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN:-}
+      - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW:-}
+      - NGINX_SSL_CERT_PATH=${NGINX_SSL_CERT_PATH:-/etc/nginx/ssl/fullchain.pem}
+      - NGINX_SSL_KEY_PATH=${NGINX_SSL_KEY_PATH:-/etc/nginx/ssl/privkey.pem}
     depends_on:
       - backend
       - frontend
     networks:
       - dolce_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

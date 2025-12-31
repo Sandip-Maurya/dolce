@@ -98,16 +98,16 @@ export function CartPage() {
                     <div className="flex flex-wrap gap-2 mb-2">
                       {item.product.tags.slice(0, 2).map((tag) => (
                         <Badge
-                          key={tag}
-                          label={tag}
+                          key={tag.id}
+                          label={tag.name}
                           type={
-                            tag === 'organic'
+                            tag.slug === 'organic'
                               ? 'organic'
-                              : tag === 'eco-friendly'
+                              : tag.slug === 'eco-friendly'
                                 ? 'eco-friendly'
-                                : tag === 'sugar-free'
+                                : tag.slug === 'sugar-free'
                                   ? 'sugar-free'
-                                  : tag === 'artisan'
+                                  : tag.slug === 'artisan'
                                     ? 'artisan'
                                     : 'custom'
                           }

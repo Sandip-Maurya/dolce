@@ -79,6 +79,11 @@ backend/.uv/
 frontend/node_modules/
 frontend/.pnpm-store/
 
+# Backend Node.js dependencies (if any - should not exist, but ignore just in case)
+backend/node_modules/
+backend/package.json
+backend/package-lock.json
+
 # Build outputs
 frontend/dist/
 frontend/build/
@@ -169,8 +174,26 @@ backups/
 *.sql.gz
 *.sql
 
+# Data export files (exclude large exports, but allow fixtures/initial/*.json)
+backend/data/
+backend/*_export.json
+backend/*_data_export.json
+backend/content_data_export.json
+# Allow fixtures/initial/*.json (small seed data)
+!backend/fixtures/initial/*.json
+# Optionally allow fixtures/content/*.json if small (< 1MB)
+# Uncomment the next line if you want to commit small content fixtures
+# !backend/fixtures/content/*.json
+
 # SSL certificates
 nginx/ssl/
+
+# Generated nginx configuration (created from templates)
+nginx/nginx.conf
+
+# Custom deployment scripts (user-specific)
+update-ssl-certs.sh
+*.sh.local
 
 # Docker override files (if any)
 docker-compose.override.yml

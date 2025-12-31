@@ -13,7 +13,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-  const [newsletterEmail, setNewsletterEmail] = useState('')
+  // const [newsletterEmail, setNewsletterEmail] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
   const menuRef = useRef<HTMLElement>(null)
@@ -34,6 +34,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     { to: '/', label: 'Home' },
     { to: '/products', label: 'Products' },
     { to: '/about', label: 'About Us' },
+    { to: '/contact', label: 'Contact' },
     { to: '/orders', label: 'Orders' },
   ]
 
@@ -413,7 +414,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
           <div className="pb-12 sm:pb-16">
             {/* Newsletter Section */}
-            <div className="mb-12 sm:mb-16 lg:mb-20">
+            {/* <div className="mb-12 sm:mb-16 lg:mb-20">
               <div className="max-w-2xl mx-auto">
                 <div className="backdrop-blur-sm bg-charcoal-800/50 rounded-2xl p-6 sm:p-8 lg:p-10 border border-gold-300/20 shadow-2xl relative z-10">
                   <div className="text-center mb-6">
@@ -451,7 +452,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
               </div>
             </div>
-
+ */}
             {/* Main Footer Content */}
             <div className="flex flex-row justify-center md:justify-around items-start gap-3 sm:gap-6 md:gap-12 lg:gap-16 mb-12 max-w-5xl mx-auto">
               {/* Quick Links */}

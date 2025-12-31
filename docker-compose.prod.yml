@@ -7,22 +7,19 @@ services:
       - DEBUG=False
     command: >
       sh -c "
+        echo 'Waiting for database to be ready...' &&
+        python check_db.py &&
         python manage.py migrate --noinput &&
+        echo 'Collecting static files...' &&
+        mkdir -p /app/staticfiles &&
         python manage.py collectstatic --noinput &&
+        echo 'Static files collected successfully' &&
         gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile - config.wsgi:application
       "
 
   frontend:
     restart: unless-stopped
 
-  nginx:
-    restart: unless-stopped
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./backend/staticfiles:/static:ro
-      - ./backend/media:/media:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
 
   db:
     restart: unless-stopped

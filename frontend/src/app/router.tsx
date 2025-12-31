@@ -11,6 +11,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { SignupPage } from '../features/auth/SignupPage'
 import { ProfilePage } from '../features/profile/ProfilePage'
 import { AboutUsPage } from '../features/about/AboutUsPage'
+import { ContactPage } from '../features/contact/ContactPage'
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
   {
     path: '/about',
     element: <MainLayout><AboutUsPage /></MainLayout>,
+  },
+  {
+    path: '/contact',
+    element: <MainLayout><ContactPage /></MainLayout>,
   },
   {
     path: '/cart',

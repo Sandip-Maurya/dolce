@@ -24,6 +24,8 @@ export function CheckoutPage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [saveToProfile, setSaveToProfile] = useState(false) // Option to save address when ordering for someone else
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null)
+  const [createdOrderTotal, setCreatedOrderTotal] = useState<number | null>(null)
+  const [paymentCompleted, setPaymentCompleted] = useState(false)
 
   // Form state
   const [customerDetails, setCustomerDetails] = useState({
@@ -45,16 +47,16 @@ export function CheckoutPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Navigate to confirmation when order is created and cart is cleared
+  // Navigate to confirmation ONLY after payment is completed
   useEffect(() => {
-    if (createdOrderId && (!cart || cart.items.length === 0)) {
+    if (paymentCompleted && createdOrderId) {
       // Small delay to ensure smooth transition
       const timer = setTimeout(() => {
         navigate(`/checkout/confirmation/${createdOrderId}`, { replace: true })
       }, 100)
       return () => clearTimeout(timer)
     }
-  }, [createdOrderId, cart, navigate])
+  }, [paymentCompleted, createdOrderId, navigate])
 
   // Pre-fill from profile when user is logged in and profile is loaded
   useEffect(() => {
@@ -214,6 +216,7 @@ export function CheckoutPage() {
       placeOrderMutation.mutate(orderData, {
         onSuccess: (order) => {
           setCreatedOrderId(order.id)
+          setCreatedOrderTotal(order.total)
           setCurrentStep(3)
         },
         onError: (error) => {
@@ -230,11 +233,14 @@ export function CheckoutPage() {
     }
   }
 
-  const handlePlaceOrder = () => {
-    // Order is already created in step 2, just navigate to confirmation
-    if (createdOrderId) {
-      navigate(`/checkout/confirmation/${createdOrderId}`)
-    }
+  const handlePaymentSuccess = () => {
+    // Mark payment as completed - this will trigger navigation via useEffect
+    setPaymentCompleted(true)
+  }
+
+  const handlePaymentFailure = () => {
+    // Payment failed - user can retry
+    toast.error('Payment failed. Please try again.')
   }
 
   if (cartLoading) {
@@ -247,8 +253,8 @@ export function CheckoutPage() {
     )
   }
 
-  // If order is created and cart is empty, show redirecting state
-  if (createdOrderId && (!cart || cart.items.length === 0)) {
+  // If payment is completed, show redirecting state
+  if (paymentCompleted && createdOrderId) {
     return (
       <Container>
         <div className="py-12">
@@ -269,7 +275,7 @@ export function CheckoutPage() {
               </svg>
             </div>
             <h2 className="text-2xl font-heading text-charcoal-900 mb-2">
-              Order Placed Successfully!
+              Payment Successful!
             </h2>
             <p className="text-charcoal-600 mb-4">Redirecting to order confirmation...</p>
           </div>
@@ -279,7 +285,8 @@ export function CheckoutPage() {
   }
 
   // If cart is empty and no order created, show empty cart message
-  if (!cart || cart.items.length === 0) {
+  // BUT: if we have a createdOrderId, we're in payment step, so don't show empty cart
+  if ((!cart || cart.items.length === 0) && !createdOrderId) {
     return (
       <Container>
         <div className="py-12">
@@ -798,21 +805,27 @@ export function CheckoutPage() {
                   <div>
                     <h3 className="text-lg font-heading text-charcoal-900 mb-4">Order Summary</h3>
                     <div className="space-y-3 mb-4">
-                      {cart.items.map((item) => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span className="text-charcoal-700">
-                            {item.product.name} × {item.quantity}
-                          </span>
-                          <span className="text-charcoal-900 font-medium">
-                            ₹{item.line_total.toLocaleString()}
-                          </span>
+                      {cart?.items && cart.items.length > 0 ? (
+                        cart.items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span className="text-charcoal-700">
+                              {item.product.name} × {item.quantity}
+                            </span>
+                            <span className="text-charcoal-900 font-medium">
+                              ₹{item.line_total.toLocaleString()}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-charcoal-600">
+                          Order #{createdOrderId} - Please complete payment
                         </div>
-                      ))}
+                      )}
                     </div>
                     <div className="border-t border-beige-200 pt-4 space-y-2">
                       <div className="flex justify-between text-charcoal-700">
                         <span>Subtotal</span>
-                        <span>₹{cart.total.toLocaleString()}</span>
+                        <span>₹{(createdOrderTotal ?? cart?.total ?? 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-charcoal-700">
                         <span>Shipping</span>
@@ -820,18 +833,20 @@ export function CheckoutPage() {
                       </div>
                       <div className="border-t border-beige-200 pt-2 flex justify-between text-xl font-heading text-charcoal-900">
                         <span>Total</span>
-                        <span>₹{cart.total.toLocaleString()}</span>
+                        <span>₹{(createdOrderTotal ?? cart?.total ?? 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Payment Section */}
                   <div>
-                    {createdOrderId ? (
+                    {createdOrderId && createdOrderTotal !== null ? (
                       <PaymentSection 
-                        amount={cart.total} 
+                        amount={createdOrderTotal} 
                         currency="INR" 
                         orderId={createdOrderId}
+                        onPaymentSuccess={handlePaymentSuccess}
+                        onPaymentFailure={handlePaymentFailure}
                       />
                     ) : (
                       <div className="text-sm text-charcoal-600">
@@ -845,15 +860,9 @@ export function CheckoutPage() {
                   <Button variant="secondary" onClick={handleBack}>
                     Back
                   </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handlePlaceOrder}
-                    isLoading={placeOrderMutation.isPending}
-                    disabled={placeOrderMutation.isPending}
-                    className="flex-1 sm:flex-none"
-                  >
-                    Confirm & Place Order
-                  </Button>
+                  <div className="text-sm text-charcoal-600 flex items-center">
+                    Complete payment to place your order
+                  </div>
                 </div>
               </div>
             )}

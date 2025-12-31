@@ -44,6 +44,7 @@ export function AboutUsPage() {
   const aboutUsContent = (isErrorAboutUs || !aboutUs) ? defaultAboutUs : aboutUs
   const ourStoryContent = (isErrorOurStory || !ourStory) ? defaultOurStory : ourStory
 
+
   return (
     <div className="flex flex-col">
       <Container>
@@ -290,6 +291,7 @@ export function AboutUsPage() {
             </div>
           )}
         </div>
+
       </Container>
     </div>
   )

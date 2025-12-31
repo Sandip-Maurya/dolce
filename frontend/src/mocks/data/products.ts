@@ -1,7 +1,54 @@
-import { type Product } from '../../lib/api/endpoints/catalog'
+import { type Product, type Category, type Subcategory, type Tag } from '../../lib/api/endpoints/catalog'
 
 // Premium Unsplash images for Dolce Fiore products
 // Using editorial-quality images: gourmet desserts, artisanal sweets, organic snacks, eco-friendly packaging
+
+// Helper function to create category objects
+const createCategory = (slug: string, name: string): Category => ({
+  id: `cat-${slug}`,
+  name,
+  slug,
+  is_active: true,
+  order: 0,
+})
+
+// Helper function to create subcategory objects
+const createSubcategory = (id: string, name: string, category: Category): Subcategory => ({
+  id: `subcat-${id}`,
+  name,
+  slug: id,
+  is_active: true,
+  order: 0,
+  category,
+})
+
+// Helper function to create tag objects
+const createTag = (slug: string, name: string): Tag => ({
+  id: `tag-${slug}`,
+  name,
+  slug,
+  is_active: true,
+})
+
+// Create category and subcategory objects
+const hamperCategory = createCategory('hamper', 'Hamper')
+const sweetCategory = createCategory('sweet', 'Sweet')
+const cookieCategory = createCategory('cookie', 'Cookie')
+const cakeCategory = createCategory('cake', 'Cake')
+const snackCategory = createCategory('snack', 'Snack')
+
+const hamperSubcategory = createSubcategory('default', 'Hamper - Default', hamperCategory)
+const sweetSubcategory = createSubcategory('default', 'Sweet - Default', sweetCategory)
+const cookieSubcategory = createSubcategory('default', 'Cookie - Default', cookieCategory)
+const cakeSubcategory = createSubcategory('default', 'Cake - Default', cakeCategory)
+const snackSubcategory = createSubcategory('default', 'Snack - Default', snackCategory)
+
+// Create tag objects
+const organicTag = createTag('organic', 'Organic')
+const artisanTag = createTag('artisan', 'Artisan')
+const ecoFriendlyTag = createTag('eco-friendly', 'Eco-Friendly')
+const guiltFreeTag = createTag('guilt-free', 'Guilt-Free')
+const sugarFreeTag = createTag('sugar-free', 'Sugar-Free')
 
 export const mockProducts: Product[] = [
   {
@@ -12,14 +59,15 @@ export const mockProducts: Product[] = [
       'A luxurious collection of handcrafted, organic dark chocolates made with premium cacao. Each piece is carefully crafted by local artisans, featuring unique flavors like sea salt caramel, orange zest, and cardamom. Wrapped in eco-friendly kraft paper with a reusable jute bag. Perfect for conscious gifting that delights the senses while supporting sustainable practices.',
     price: 2499,
     currency: 'INR',
-    category: 'HAMPER',
+    category: hamperCategory,
+    subcategory: hamperSubcategory,
     images: [
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['organic', 'artisan', 'eco-friendly', 'guilt-free'],
+    tags: [organicTag, artisanTag, ecoFriendlyTag, guiltFreeTag],
     is_available: true,
     weight_grams: 500,
   },
@@ -31,14 +79,15 @@ export const mockProducts: Product[] = [
       'Indulge guilt-free with our curated selection of sugar-free desserts. Featuring air-fried cookies, natural sweetener-based cakes, and artisanal treats. All ingredients are organic and locally sourced. Each item is handcrafted with care, ensuring premium quality and taste. Packaged in reusable glass jars and cloth bags.',
     price: 1899,
     currency: 'INR',
-    category: 'SWEET',
+    category: sweetCategory,
+    subcategory: sweetSubcategory,
     images: [
       'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['sugar-free', 'organic', 'guilt-free', 'artisan'],
+    tags: [sugarFreeTag, organicTag, guiltFreeTag, artisanTag],
     is_available: true,
     weight_grams: 750,
   },
@@ -50,13 +99,14 @@ export const mockProducts: Product[] = [
       'A premium collection of handcrafted cookies made with organic flour, natural sweeteners, and traditional recipes. Each cookie is baked fresh and features unique flavors like almond cardamom, coconut jaggery, and chocolate chip with dates. Presented in a beautiful wooden box with eco-friendly packaging.',
     price: 1299,
     currency: 'INR',
-    category: 'COOKIE',
+    category: cookieCategory,
+    subcategory: cookieSubcategory,
     images: [
       'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['artisan', 'organic', 'eco-friendly'],
+    tags: [artisanTag, organicTag, ecoFriendlyTag],
     is_available: true,
     weight_grams: 400,
   },
@@ -68,14 +118,15 @@ export const mockProducts: Product[] = [
       'A thoughtfully curated hamper of air-fried savories and organic snacks. Features baked namkeen, roasted nuts, and traditional Indian snacks made with minimal oil and natural ingredients. All items are handcrafted by local artisans and packaged in reusable containers. Perfect for health-conscious individuals who love flavor.',
     price: 1599,
     currency: 'INR',
-    category: 'HAMPER',
+    category: hamperCategory,
+    subcategory: hamperSubcategory,
     images: [
       'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['organic', 'guilt-free', 'eco-friendly', 'artisan'],
+    tags: [organicTag, guiltFreeTag, ecoFriendlyTag, artisanTag],
     is_available: true,
     weight_grams: 600,
   },
@@ -87,14 +138,15 @@ export const mockProducts: Product[] = [
       'Handcrafted cakes made with organic ingredients and natural sweeteners. Our collection includes classic flavors like vanilla bean, chocolate fudge, and lemon zest, all sugar-free and guilt-free. Each cake is baked fresh and decorated with edible flowers and natural garnishes. Presented in eco-friendly packaging.',
     price: 2199,
     currency: 'INR',
-    category: 'CAKE',
+    category: cakeCategory,
+    subcategory: cakeSubcategory,
     images: [
       'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['sugar-free', 'organic', 'artisan', 'guilt-free'],
+    tags: [sugarFreeTag, organicTag, artisanTag, guiltFreeTag],
     is_available: true,
     weight_grams: 1000,
   },
@@ -106,14 +158,15 @@ export const mockProducts: Product[] = [
       'Our signature gift hamper featuring a premium selection of organic sweets, sugar-free chocolates, artisanal cookies, and air-fried savories. All items are handcrafted with care and packaged in sustainable materials including kraft paper, jute bags, and reusable glass containers. A perfect gift that celebrates conscious living and premium quality.',
     price: 3499,
     currency: 'INR',
-    category: 'HAMPER',
+    category: hamperCategory,
+    subcategory: hamperSubcategory,
     images: [
       'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['organic', 'eco-friendly', 'artisan', 'guilt-free'],
+    tags: [organicTag, ecoFriendlyTag, artisanTag, guiltFreeTag],
     is_available: true,
     weight_grams: 1500,
   },
@@ -125,14 +178,15 @@ export const mockProducts: Product[] = [
       'A collection of traditional Indian sweets reimagined with organic ingredients and natural sweeteners. Features besan ladoo, coconut barfi, and date rolls, all made by skilled local artisans. Each sweet is handcrafted and wrapped in eco-friendly packaging. A perfect blend of tradition and conscious living.',
     price: 999,
     currency: 'INR',
-    category: 'SWEET',
+    category: sweetCategory,
+    subcategory: sweetSubcategory,
     images: [
       'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['artisan', 'organic', 'guilt-free'],
+    tags: [artisanTag, organicTag, guiltFreeTag],
     is_available: true,
     weight_grams: 500,
   },
@@ -144,14 +198,15 @@ export const mockProducts: Product[] = [
       'A premium selection of air-fried and baked snacks made with organic ingredients. Features multigrain chips, spiced nuts, and traditional namkeen varieties. All snacks are prepared with minimal oil and natural seasonings. Packaged in reusable containers with eco-friendly materials.',
     price: 1199,
     currency: 'INR',
-    category: 'SNACK',
+    category: snackCategory,
+    subcategory: snackSubcategory,
     images: [
       'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=800&q=80&auto=format&fit=crop',
     ],
-    tags: ['organic', 'guilt-free', 'eco-friendly'],
+    tags: [organicTag, guiltFreeTag, ecoFriendlyTag],
     is_available: true,
     weight_grams: 450,
   },

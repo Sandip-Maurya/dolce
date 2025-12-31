@@ -15,8 +15,13 @@ services:
       - ./backend/logs:/app/logs
     command: >
       sh -c "
+        echo 'Waiting for database to be ready...' &&
+        python check_db.py &&
         python manage.py migrate --noinput &&
-        python manage.py collectstatic --noinput || true &&
+        echo 'Collecting static files...' &&
+        mkdir -p /app/staticfiles &&
+        python manage.py collectstatic --noinput &&
+        echo 'Static files collected successfully' &&
         gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
       "
 
@@ -32,4 +37,6 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    # Override entrypoint to skip template processing (uses static config file)
+    entrypoint: ["nginx", "-g", "daemon off;"]
 

@@ -15,6 +15,9 @@ from .models import (
     OurCommitmentSection,
     PhotoGalleryItem,
     BlogPost,
+    ContactSubmission,
+    ContactInfo,
+    StoreCenter,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -25,6 +28,9 @@ from .serializers import (
     OurCommitmentSectionSerializer,
     PhotoGalleryItemSerializer,
     BlogPostSerializer,
+    ContactSubmissionSerializer,
+    ContactInfoSerializer,
+    StoreCenterSerializer,
 )
 
 
@@ -182,5 +188,76 @@ def blogs_view(request):
     """Get all active blog posts ordered by published date."""
     queryset = BlogPost.objects.filter(is_active=True).order_by('-published_date', 'order')
     serializer = BlogPostSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Submit contact form',
+    description='Submit a contact form message',
+    request=ContactSubmissionSerializer,
+    responses={201: ContactSubmissionSerializer},
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def contact_form_submission_view(request):
+    """Handle contact form submissions."""
+    serializer = ContactSubmissionSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        serializer.save()
+        return Response(
+            {'message': 'Thank you for contacting us! We will get back to you soon.'},
+            status=status.HTTP_201_CREATED
+        )
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get contact information',
+    description='Get active contact information, with default fallback if none exists',
+    responses={200: ContactInfoSerializer},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def contact_info_view(request):
+    """Get active contact information with default fallback."""
+    queryset = ContactInfo.objects.filter(is_active=True).first()
+    
+    if queryset:
+        serializer = ContactInfoSerializer(queryset)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # Default fallback content
+    default_data = {
+        'id': None,
+        'email': 'hello@dolcefiore.com',
+        'phone': '+91 1234567890',
+        'additional_info': '',
+        'opening_hours_monday': '6:00 AM - 8:00 PM',
+        'opening_hours_tuesday': '6:00 AM - 8:00 PM',
+        'opening_hours_wednesday': '6:00 AM - 8:00 PM',
+        'opening_hours_thursday': '6:00 AM - 8:00 PM',
+        'opening_hours_friday': '6:00 AM - 8:00 PM',
+        'opening_hours_saturday': '6:00 AM - 8:00 PM',
+        'opening_hours_sunday': '6:00 AM - 8:00 PM',
+    }
+    return Response(default_data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='List store centers',
+    description='Get all active store centers ordered by order field',
+    responses={200: StoreCenterSerializer(many=True)},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def store_centers_view(request):
+    """Get all active store centers."""
+    queryset = StoreCenter.objects.filter(is_active=True).order_by('order')
+    serializer = StoreCenterSerializer(queryset, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

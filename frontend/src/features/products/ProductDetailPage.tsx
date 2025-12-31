@@ -21,7 +21,7 @@ export function ProductDetailPage() {
   const relatedProducts = useMemo(() => {
     if (!product || !allProducts) return []
     return allProducts
-      .filter((p) => p.category === product.category && p.id !== product.id)
+      .filter((p) => p.category.id === product.category.id && p.id !== product.id)
       .slice(0, 4)
   }, [product, allProducts])
 
@@ -192,16 +192,16 @@ export function ProductDetailPage() {
             <div className="flex flex-wrap gap-2 mb-4">
               {product.tags.map((tag) => (
                 <Badge
-                  key={tag}
-                  label={tag}
+                  key={tag.id}
+                  label={tag.name}
                   type={
-                    tag === 'organic'
+                    tag.slug === 'organic'
                       ? 'organic'
-                      : tag === 'eco-friendly'
+                      : tag.slug === 'eco-friendly'
                         ? 'eco-friendly'
-                        : tag === 'sugar-free'
+                        : tag.slug === 'sugar-free'
                           ? 'sugar-free'
-                          : tag === 'artisan'
+                          : tag.slug === 'artisan'
                             ? 'artisan'
                             : 'custom'
                   }
@@ -264,16 +264,16 @@ export function ProductDetailPage() {
                       <div className="flex flex-wrap gap-2 mb-3">
                         {relatedProduct.tags.slice(0, 2).map((tag) => (
                           <Badge
-                            key={tag}
-                            label={tag}
+                            key={tag.id}
+                            label={tag.name}
                             type={
-                              tag === 'organic'
+                              tag.slug === 'organic'
                                 ? 'organic'
-                                : tag === 'eco-friendly'
+                                : tag.slug === 'eco-friendly'
                                   ? 'eco-friendly'
-                                  : tag === 'sugar-free'
+                                  : tag.slug === 'sugar-free'
                                     ? 'sugar-free'
-                                    : tag === 'artisan'
+                                    : tag.slug === 'artisan'
                                       ? 'artisan'
                                       : 'custom'
                             }
