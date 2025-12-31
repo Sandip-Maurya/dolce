@@ -37,4 +37,6 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    # Override entrypoint to skip template processing (uses static config file)
+    entrypoint: ["nginx", "-g", "daemon off;"]
 
