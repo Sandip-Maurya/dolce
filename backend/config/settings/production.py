@@ -23,6 +23,9 @@ DATABASES = {
         'OPTIONS': {
             'connect_timeout': 10,
         },
+        # Enable connection pooling - reuse database connections for 10 minutes
+        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
+        'CONN_HEALTH_CHECKS': True,  # Check connections before reuse
     }
 }
 
@@ -69,26 +72,28 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        # File handler - only logs errors to reduce I/O overhead
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'django.log',
             'maxBytes': 1024 * 1024 * 10,  # 10 MB
             'backupCount': 5,
-            'formatter': 'verbose',
+            'formatter': 'simple',
+            'level': 'ERROR',  # Only log errors to file
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console'],  # Only console for general logging
         'level': os.getenv('LOG_LEVEL', 'INFO'),
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],  # Only console for Django logs
             'level': os.getenv('LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console', 'file'],  # Log errors to both console and file
             'level': 'ERROR',
             'propagate': False,
         },
