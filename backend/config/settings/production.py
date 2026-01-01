@@ -32,6 +32,9 @@ DATABASES = {
 # Security settings for production
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Exempt health check endpoint from SSL redirect (for Docker healthchecks)
+# Internal health checks don't go through nginx and don't need HTTPS
+SECURE_REDIRECT_EXEMPT = [r'^/health/']
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True

@@ -124,6 +124,12 @@ http {
             add_header Cache-Control "public";
         }
 
+        # Block old WordPress paths (return 404 instead of proxying)
+        location ~ ^/(wp-|wp-content/|cdn-cgi/) {
+            access_log off;
+            return 404;
+        }
+
         # Frontend SPA - all other routes
         location / {
             proxy_pass http://frontend;
