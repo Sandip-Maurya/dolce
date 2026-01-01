@@ -7,6 +7,7 @@ import { SectionTitle } from '../../components/SectionTitle'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
 import { useProduct, useProducts } from '../../lib/hooks/useProducts'
 import { useAddToCart } from '../../lib/hooks/useCart'
+import { ApiError } from '../../lib/api/client'
 import { useState, useMemo } from 'react'
 import toast from 'react-hot-toast'
 
@@ -85,6 +86,13 @@ export function ProductDetailPage() {
       {
         onSuccess: () => {
           toast.success('Product added to cart!')
+        },
+        onError: (error) => {
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            toast.error('Please login to add product to cart.')
+          } else {
+            toast.error(error instanceof Error ? error.message : 'Failed to add product to cart')
+          }
         },
       }
     )
