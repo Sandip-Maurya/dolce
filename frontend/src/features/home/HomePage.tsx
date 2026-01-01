@@ -6,6 +6,7 @@ import { SkeletonProductGrid } from '../../components/SkeletonLoader'
 import { Link } from 'react-router-dom'
 import { useProducts } from '../../lib/hooks/useProducts'
 import { useAddToCart } from '../../lib/hooks/useCart'
+import { ApiError } from '../../lib/api/client'
 import { useDynamicTextSize } from '../../lib/hooks/useDynamicTextSize'
 import { useSustainableGifting } from '../../lib/hooks/useSustainableGifting'
 import { useTextTestimonials, useVideoTestimonials } from '../../lib/hooks/useTestimonials'
@@ -25,6 +26,13 @@ function ProductCard({ product }: { product: Product }) {
       {
         onSuccess: () => {
           toast.success('Product added to cart!')
+        },
+        onError: (error) => {
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            toast.error('Please login to add product to cart.')
+          } else {
+            toast.error(error instanceof Error ? error.message : 'Failed to add product to cart')
+          }
         },
       }
     )
