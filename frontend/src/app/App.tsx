@@ -28,8 +28,14 @@ const queryClient = new QueryClient({
             queryClient.removeQueries({ queryKey: ['user'] })
             window.location.href = '/auth/login'
           }
+          // Don't show toast for 401 errors - let component handlers manage the message
+          return
+        } else if (error instanceof ApiError && error.status === 403) {
+          // Don't show toast for 403 errors - let component handlers manage the message
+          // Component handlers will show specific messages like "Please login to add product to cart"
+          return
         } else if (error instanceof ApiError) {
-          // Show error toast for other API errors
+          // Show error toast for other API errors (4xx, 5xx, etc.)
           toast.error(error.message || 'An error occurred')
         } else if (error instanceof Error) {
           toast.error(error.message || 'An error occurred')

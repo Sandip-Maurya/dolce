@@ -40,13 +40,13 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   const isActive = (path: string) => location.pathname === path
 
-  // Handle menu toggle with flag to prevent immediate closure
+  // Handle menu toggle
   const handleMenuToggle = () => {
     if (!isMobileMenuOpen) {
-      // Menu is opening - set flag to prevent immediate closure
+      // Menu is opening
       menuJustOpenedRef.current = true
       setIsMobileMenuOpen(true)
-      // Reset the flag after a delay to allow scroll handler to work normally
+      // Reset the flag after a delay
       setTimeout(() => {
         menuJustOpenedRef.current = false
       }, 300)
@@ -79,28 +79,6 @@ export function MainLayout({ children }: MainLayoutProps) {
       return () => {
         clearTimeout(timeoutId)
         document.removeEventListener('mousedown', handleClickOutside)
-      }
-    }
-  }, [isMobileMenuOpen])
-
-  // Close menu on scroll (only if menu wasn't just opened)
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isMobileMenuOpen && !menuJustOpenedRef.current) {
-        setIsMobileMenuOpen(false)
-        menuJustOpenedRef.current = false
-      }
-    }
-
-    if (isMobileMenuOpen) {
-      // Add a small delay before enabling scroll handler
-      const timeoutId = setTimeout(() => {
-        window.addEventListener('scroll', handleScroll, { passive: true })
-      }, 300)
-
-      return () => {
-        clearTimeout(timeoutId)
-        window.removeEventListener('scroll', handleScroll)
       }
     }
   }, [isMobileMenuOpen])

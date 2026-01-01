@@ -6,6 +6,7 @@ import { Button } from '../../components/Button'
 import { useProducts } from '../../lib/hooks/useProducts'
 import { useCategoriesWithSubcategories } from '../../lib/hooks/useCategories'
 import { useAddToCart } from '../../lib/hooks/useCart'
+import { ApiError } from '../../lib/api/client'
 import type { Product } from '../../lib/api/endpoints/catalog'
 import { catalogApi } from '../../lib/api/endpoints/catalog'
 import { useQuery } from '@tanstack/react-query'
@@ -27,6 +28,13 @@ function ProductCard({ product }: { product: Product }) {
       {
         onSuccess: () => {
           toast.success('Product added to cart!')
+        },
+        onError: (error) => {
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            toast.error('Please login to add product to cart.')
+          } else {
+            toast.error(error instanceof Error ? error.message : 'Failed to add product to cart')
+          }
         },
       }
     )

@@ -123,6 +123,68 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend pyt
 - Cart items
 - Payment records
 
+## Import Behavior: Understanding Updates vs Duplicates
+
+### Without `--clear-existing` (Default Behavior)
+
+When importing **without** `--clear-existing`, Django uses the primary key (ID) to determine whether to create or update:
+
+1. **Existing Records (Same ID):** 
+   - ✅ **Will be UPDATED** (not duplicated)
+   - ⚠️ **Warning:** Any changes made in production will be overwritten with data from the export file
+   - Example: If a product with ID=1 exists in both dev export and prod DB, prod's product will be updated with dev's data
+
+2. **New Records (Different ID or New):**
+   - ✅ **Will be CREATED** as new records
+   - Example: If dev export has a product with ID=10 that doesn't exist in prod, it will be created
+
+3. **Records Only in Prod (Not in Export):**
+   - ✅ **Will remain UNCHANGED**
+   - Example: If prod has a product with ID=20 that's not in the dev export, it will stay in prod as-is
+
+### With `--clear-existing` Flag
+
+When using `--clear-existing`:
+- ⚠️ **ALL existing data will be DELETED** before import
+- Then all data from the export file will be imported fresh
+- This ensures production exactly matches the export file
+
+### When to Use Each Approach
+
+**Use `--clear-existing` for:**
+- ✅ First-time migration (empty prod database)
+- ✅ When you want production to exactly match dev (complete replacement)
+- ✅ When you've made significant changes in dev and want to overwrite prod
+
+**Use without `--clear-existing` for:**
+- ✅ Incremental updates (only updating changed/new items)
+- ✅ When production has data you want to keep (not in export)
+- ⚠️ **Be careful:** This will overwrite matching records, so any prod-specific changes will be lost
+
+### Example Scenarios
+
+**Scenario 1: First Migration**
+```bash
+# Prod is empty, import everything
+docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+```
+
+**Scenario 2: Subsequent Migrations (Incremental Updates)**
+```bash
+# Prod has existing data, update/merge with dev changes
+docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json
+# This will:
+# - Update products/categories that exist in both (same ID)
+# - Add new products/categories from dev
+# - Keep prod-only data unchanged
+```
+
+**Scenario 3: Sync Prod to Match Dev Exactly**
+```bash
+# Replace all prod content with dev content
+docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+```
+
 ## Example Workflow: Dev to Prod
 
 ```bash

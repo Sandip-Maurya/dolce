@@ -163,9 +163,20 @@ class ApiClient {
         
         // Handle specific status codes
         if (response.status === 401) {
-          // Unauthorized - clear any cached user data
+          // Unauthorized - check if it's a cart operation for specific message
+          if (endpoint.includes('/cart/')) {
+            throw new ApiError('Please login to add product to cart.', 401, data)
+          }
           throw new ApiError('Authentication required. Please log in.', 401, data)
         } else if (response.status === 403) {
+          // Check if this is an authentication-related 403 (unauthenticated user)
+          // Django REST Framework sometimes returns 403 for unauthenticated users
+          const isAuthError = errorMessage.toLowerCase().includes('authentication') || 
+                            errorMessage.toLowerCase().includes('login') ||
+                            errorMessage.toLowerCase().includes('permission')
+          if (isAuthError && endpoint.includes('/cart/')) {
+            throw new ApiError('Please login to add product to cart.', 403, data)
+          }
           throw new ApiError('You do not have permission to perform this action.', 403, data)
         } else if (response.status === 404) {
           throw new ApiError('The requested resource was not found.', 404, data)
