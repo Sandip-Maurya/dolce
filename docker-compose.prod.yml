@@ -14,7 +14,7 @@ services:
         mkdir -p /app/staticfiles &&
         python manage.py collectstatic --noinput &&
         echo 'Static files collected successfully' &&
-        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile - config.wsgi:application
+        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 180 --graceful-timeout 30 --access-logfile - --error-logfile - config.wsgi:application
       "
 
   frontend:
