@@ -8,6 +8,11 @@ services:
     environment:
       - DJANGO_ENV=development
       - DEBUG=True
+      - USE_S3=${USE_S3:-False}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-}
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-us-east-1}
     volumes:
       - ./backend:/app
       - ./backend/media:/app/media
@@ -25,18 +30,14 @@ services:
         gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
       "
 
-  frontend:
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
   nginx:
     ports:
       - "8080:80"
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend/staticfiles:/static:ro
+      - ./backend/media:/media:ro
     # Override entrypoint to skip template processing (uses static config file)
     entrypoint: ["nginx", "-g", "daemon off;"]
 

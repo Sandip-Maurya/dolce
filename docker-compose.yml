@@ -55,11 +55,18 @@ services:
         gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile - config.wsgi:application
       "
 
-  frontend:
+  frontend-next:
     build:
-      context: ./frontend
+      context: ./frontend-next
       dockerfile: Dockerfile
-    container_name: dolce_frontend
+      args:
+        - BACKEND_URL=http://backend:8000
+    container_name: dolce_frontend_next
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      - BACKEND_URL=http://backend:8000
     networks:
       - dolce_network
     depends_on:
@@ -96,7 +103,7 @@ services:
       - NGINX_SSL_KEY_PATH=${NGINX_SSL_KEY_PATH:-/etc/nginx/ssl/privkey.pem}
     depends_on:
       - backend
-      - frontend
+      - frontend-next
     networks:
       - dolce_network
     restart: unless-stopped

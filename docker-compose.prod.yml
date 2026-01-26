@@ -5,6 +5,11 @@ services:
     environment:
       - DJANGO_ENV=production
       - DEBUG=False
+      - USE_S3=${USE_S3:-False}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-}
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-us-east-1}
     command: >
       sh -c "
         echo 'Waiting for database to be ready...' &&
@@ -16,10 +21,6 @@ services:
         echo 'Static files collected successfully' &&
         gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 180 --graceful-timeout 30 --access-logfile - --error-logfile - config.wsgi:application
       "
-
-  frontend:
-    restart: unless-stopped
-
 
   db:
     restart: unless-stopped
