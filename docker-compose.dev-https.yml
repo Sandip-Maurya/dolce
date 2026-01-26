@@ -6,10 +6,6 @@ services:
       - DJANGO_ENV=development
       - DEBUG=True
 
-  frontend:
-    environment:
-      - NODE_ENV=development
-
   nginx:
     ports:
       - "80:80"

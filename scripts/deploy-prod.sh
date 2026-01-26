@@ -31,13 +31,19 @@ export $(cat .env | grep -v '^#' | xargs)
 echo "💾 Creating database backup..."
 ./scripts/backup-db.sh || echo "⚠️  Warning: Database backup failed, but continuing..."
 
+# Decide which compose files to use (auto-include HTTPS override if present)
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+if [ -f "docker-compose.prod-https.yml" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.prod-https.yml"
+fi
+
 # Stop existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker-compose $COMPOSE_FILES down
 
 # Build and start containers
 echo "🔨 Building and starting containers..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker-compose $COMPOSE_FILES up -d --build
 
 # Wait for database to be ready
 echo "⏳ Waiting for database to be ready..."
@@ -45,20 +51,20 @@ sleep 10
 
 # Run migrations
 echo "🗄️  Running database migrations..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend python manage.py migrate --noinput
+docker-compose $COMPOSE_FILES exec -T backend python manage.py migrate --noinput
 
 # Collect static files
 echo "📦 Collecting static files..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+docker-compose $COMPOSE_FILES exec -T backend python manage.py collectstatic --noinput
 
 # Show container status
 echo "✅ Deployment complete! Container status:"
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker-compose $COMPOSE_FILES ps
 
 # Health check
 echo "🏥 Performing health check..."
 sleep 5
-if curl -f http://localhost/health > /dev/null 2>&1; then
+if curl -fsSL http://localhost/health > /dev/null 2>&1; then
     echo "✅ Health check passed!"
 else
     echo "⚠️  Warning: Health check failed. Please verify the deployment."

@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --color-beige-50: #faf9f7;
+  --color-beige-100: #f5f3f0;
+  --color-beige-200: #e8e4dd;
+  --color-beige-300: #d4ccc0;
+  --color-beige-400: #b8ab9a;
+  --color-beige-500: #9d8d7a;
+  --color-beige-600: #7a6b5c;
+  --color-beige-700: #5d5146;
+  --color-beige-800: #4a4037;
+  --color-beige-900: #3d352e;
+  
+  --color-charcoal-50: #f6f6f6;
+  --color-charcoal-100: #e7e7e7;
+  --color-charcoal-200: #d1d1d1;
+  --color-charcoal-300: #b0b0b0;
+  --color-charcoal-400: #888888;
+  --color-charcoal-500: #6d6d6d;
+  --color-charcoal-600: #5d5d5d;
+  --color-charcoal-700: #4f4f4f;
+  --color-charcoal-800: #454545;
+  --color-charcoal-900: #3d3d3d;
+  
+  --color-gold-50: #fefdf8;
+  --color-gold-100: #fef9e7;
+  --color-gold-200: #fdf1c4;
+  --color-gold-300: #fbe596;
+  --color-gold-400: #f8d366;
+  --color-gold-500: #f5c842;
+  --color-gold-600: #e6a91a;
+  --color-gold-700: #c08514;
+  --color-gold-800: #9a6716;
+  --color-gold-900: #7d5516;
+  
+  --font-family-heading: 'Playfair Display', serif;
+  --font-family-body: 'Inter', sans-serif;
+  
+  --font-heading: var(--font-family-heading);
+  --font-body: var(--font-family-body);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-family-body);
+    color: var(--color-charcoal-900);
+    background-color: var(--color-beige-50);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-heading);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  h1 {
+    font-weight: 700;
+  }
+
+  h2 {
+    font-weight: 600;
+  }
+
+  h3, h4 {
+    font-weight: 500;
+  }
+
+  p {
+    line-height: 1.6;
+  }
+}
+
+@layer utilities {
+  /* Hero section vignette effect */
+  .hero-vignette {
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(61, 61, 61, 0.3) 100%);
+  }
+  
+  /* Fade-in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-in {
+    animation: fadeIn 1s ease-out;
+  }
+  
+  .fade-in {
+    animation: fadeIn 1s ease-out;
+  }
+  
+  /* Shimmer animation for skeleton loaders */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+  
+  .shimmer {
+    background: linear-gradient(
+      to right,
+      #f5f3f0 0%,
+      #e8e4dd 50%,
+      #f5f3f0 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+}

@@ -31,13 +31,19 @@ fi
 # Load environment variables
 export $(cat .env | grep -v '^#' | xargs)
 
+# Decide which compose files to use (auto-include HTTPS override if present)
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+if [ -f "docker-compose.dev-https.yml" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.dev-https.yml"
+fi
+
 # Stop existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+docker-compose $COMPOSE_FILES down
 
 # Build and start containers
 echo "🔨 Building and starting containers..."
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker-compose $COMPOSE_FILES up -d --build
 
 # Wait for database to be ready
 echo "⏳ Waiting for database to be ready..."
@@ -45,15 +51,15 @@ sleep 5
 
 # Run migrations
 echo "🗄️  Running database migrations..."
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend python manage.py migrate --noinput
+docker-compose $COMPOSE_FILES exec -T backend python manage.py migrate --noinput
 
 # Collect static files
 echo "📦 Collecting static files..."
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend python manage.py collectstatic --noinput || true
+docker-compose $COMPOSE_FILES exec -T backend python manage.py collectstatic --noinput || true
 
 # Show container status
 echo "✅ Deployment complete! Container status:"
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
+docker-compose $COMPOSE_FILES ps
 
 echo ""
 echo "🌐 Application should be available at: http://localhost:8080"
