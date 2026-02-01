@@ -7,6 +7,9 @@ export interface Category {
   description?: string
   is_active: boolean
   order: number
+  featured_on_homepage?: boolean
+  homepage_image_url?: string
+  homepage_order?: number
 }
 
 export interface Subcategory {
@@ -65,13 +68,18 @@ export interface ProductFilters {
 }
 
 export const catalogApi = {
-  fetchProducts: (filters?: ProductFilters) => 
+  fetchProducts: (filters?: ProductFilters) =>
     apiClient.get<Product[]>('/products/', filters as Record<string, string | number | boolean | undefined>),
   fetchProduct: (slug: string) => apiClient.get<Product>(`/products/${slug}/`),
   fetchCategories: () => apiClient.get<Category[]>('/products/categories/'),
-  fetchCategoriesWithSubcategories: () => 
+  fetchCategoriesWithSubcategories: () =>
     apiClient.get<CategoryWithSubcategories[]>('/products/categories/?include=subcategories'),
-  fetchSubcategories: (categoryId: string) => 
+  fetchHomepageCategories: () =>
+    apiClient.get<Category[]>('/products/categories/?featured_on_homepage=true').catch((e) => {
+      console.error('Failed to fetch homepage categories', e)
+      return []
+    }),
+  fetchSubcategories: (categoryId: string) =>
     apiClient.get<Subcategory[]>(`/products/categories/${categoryId}/subcategories/`),
   fetchTags: () => apiClient.get<Tag[]>('/products/tags/'),
 }

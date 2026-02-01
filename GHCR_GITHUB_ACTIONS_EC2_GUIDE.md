@@ -92,7 +92,7 @@ cd ~/dolce  # or wherever you keep the repo
 git pull origin dev
 ```
 
-2. **Ensure `.env` file exists** with production settings:
+2. **Ensure `.env` file exists** (set values based on your environment):
 
 ```bash
 # Copy from .env.example if needed
@@ -101,28 +101,40 @@ cp .env.example .env
 nano .env
 ```
 
-Required `.env` variables:
+Minimum `.env` variables you typically need:
 - `SECRET_KEY`
-- `DJANGO_ENV=production`
-- `DEBUG=False`
 - `ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com`
+- `CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com`
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- `CORS_ALLOWED_ORIGINS=https://yourdomain.com`
 - `NGINX_DOMAIN`, `NGINX_DOMAIN_WWW`
 - `NGINX_SSL_CERT_PATH`, `NGINX_SSL_KEY_PATH`
-- (Optional) `USE_S3=True`, AWS credentials, Razorpay keys
 
-3. **Pull the latest images**:
+Environment selection:
+- **Production**: `DJANGO_ENV=production`, `DEBUG=False`
+- **Dev on EC2 (staging)**: `DJANGO_ENV=development`, `DEBUG=True`
+
+### Pick the right compose command (production vs dev/staging)
+
+#### Option A: Dev/Staging on EC2 with HTTPS (what you’re currently using)
+
+Use:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml up -d
+```
+
+Important:
+- **Do not include** `docker-compose.dev.yml` in the same command.
+  - `docker-compose.dev.yml` mounts `/etc/nginx/nginx.conf` read-only (local dev convenience)
+  - `docker-compose.dev-https.yml` generates `/etc/nginx/nginx.conf` from a template (needs write access)
+
+#### Option B: Production on EC2 with HTTPS (recommended for real production)
+
+Use this instead:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-```
-
-This downloads the pre-built images from GHCR (no building happens).
-
-4. **Start the services**:
-
-```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
 ```
 
@@ -155,13 +167,19 @@ git push origin dev
 
 2. **Wait for GitHub Actions to complete** (check Actions tab, usually 5-10 minutes)
 
-3. **On EC2, pull and restart**:
+3. **On EC2, pull and restart** (choose the matching compose command you used above):
 
 ```bash
 cd ~/dolce
 git pull origin dev
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+
+# Dev/staging on EC2 with HTTPS
+docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml up -d
+
+# Production on EC2 with HTTPS
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
 ```
 
 ### Quick Update Script

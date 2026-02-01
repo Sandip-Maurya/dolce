@@ -14,6 +14,11 @@ from .views import (
     contact_form_submission_view,
     contact_info_view,
     store_centers_view,
+    hero_view,
+    trust_bar_list_view,
+    faqs_list_view,
+    corporate_gifting_view,
+    seasonal_view,
 )
 
 app_name = 'content'
@@ -30,5 +35,10 @@ urlpatterns = [
     path('contact/', contact_form_submission_view, name='contact-submission'),
     path('contact-info/', contact_info_view, name='contact-info'),
     path('store-centers/', store_centers_view, name='store-centers'),
+    path('hero/', hero_view, name='hero'),
+    path('trust-bar/', trust_bar_list_view, name='trust-bar-list'),
+    path('faqs/', faqs_list_view, name='faqs-list'),
+    path('corporate-gifting/', corporate_gifting_view, name='corporate-gifting'),
+    path('seasonal/', seasonal_view, name='seasonal'),
 ]
 

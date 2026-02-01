@@ -1,9 +1,39 @@
 """
 Admin configuration for products app.
 """
+import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Product, ProductImage, Category, Subcategory, Tag
+from .revalidation import revalidate_products
+
+logger = logging.getLogger(__name__)
+
+
+class RevalidatingModelAdmin(admin.ModelAdmin):
+    """
+    Base admin class that triggers frontend revalidation on save/delete.
+    """
+    revalidate_on_change = True
+    
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if self.revalidate_on_change:
+            action = 'updated' if change else 'created'
+            logger.info(f'{obj._meta.model_name} {action}, triggering revalidation')
+            revalidate_products()
+    
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        if self.revalidate_on_change:
+            logger.info(f'{obj._meta.model_name} deleted, triggering revalidation')
+            revalidate_products()
+    
+    def delete_queryset(self, request, queryset):
+        super().delete_queryset(request, queryset)
+        if self.revalidate_on_change:
+            logger.info(f'Bulk delete of {queryset.model._meta.model_name}, triggering revalidation')
+            revalidate_products()
 
 
 class SubcategoryInline(admin.TabularInline):
@@ -23,11 +53,11 @@ class ProductImageInline(admin.TabularInline):
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(RevalidatingModelAdmin):
     """Admin for categories."""
     inlines = [SubcategoryInline]
-    list_display = ['name', 'slug', 'order', 'is_active', 'product_count', 'created_at']
-    list_filter = ['is_active', 'created_at']
+    list_display = ['name', 'slug', 'order', 'featured_on_homepage', 'homepage_order', 'is_active', 'product_count', 'created_at']
+    list_filter = ['is_active', 'featured_on_homepage', 'created_at']
     search_fields = ['name', 'description']
     readonly_fields = ['id', 'created_at', 'updated_at']
     prepopulated_fields = {'slug': ('name',)}
@@ -39,6 +69,9 @@ class CategoryAdmin(admin.ModelAdmin):
         }),
         ('Settings', {
             'fields': ('is_active', 'order')
+        }),
+        ('Homepage', {
+            'fields': ('featured_on_homepage', 'homepage_image_url', 'homepage_order')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -120,7 +153,7 @@ class TagAdmin(admin.ModelAdmin):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(RevalidatingModelAdmin):
     """User-friendly product admin."""
     inlines = [ProductImageInline]
     list_display = ['name', 'category', 'subcategory', 'price', 'currency', 'is_available', 'created_at', 'image_preview']

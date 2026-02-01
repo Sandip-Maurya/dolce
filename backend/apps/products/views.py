@@ -118,19 +118,23 @@ def product_detail_view(request, slug):
 @extend_schema(
     tags=['Products'],
     summary='List all categories',
-    description='Get all active categories. Use ?include=subcategories to get nested subcategories.',
+    description='Get all active categories. Use ?include=subcategories for nested subcategories. Use ?featured_on_homepage=true for homepage-featured categories only.',
     responses={200: CategorySerializer(many=True)},
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def category_list_view(request):
-    """Get all active categories, optionally with nested subcategories."""
+    """Get all active categories, optionally with nested subcategories or homepage-featured only."""
     include_subcategories = request.query_params.get('include') == 'subcategories'
+    featured_on_homepage = request.query_params.get('featured_on_homepage') == 'true'
     
-    categories = Category.objects.filter(is_active=True).order_by('order', 'name')
+    categories = Category.objects.filter(is_active=True)
+    if featured_on_homepage:
+        categories = categories.filter(featured_on_homepage=True).order_by('homepage_order', 'order', 'name')
+    else:
+        categories = categories.order_by('order', 'name')
     
     if include_subcategories:
-        # Prefetch subcategories for efficiency
         categories = categories.prefetch_related('subcategories')
         serializer = CategoryWithSubcategoriesSerializer(categories, many=True)
     else:

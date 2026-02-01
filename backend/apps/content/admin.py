@@ -1,6 +1,7 @@
 """
 Admin configuration for content app.
 """
+import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
@@ -15,11 +16,48 @@ from .models import (
     ContactSubmission,
     ContactInfo,
     StoreCenter,
+    HeroSection,
+    TrustBarItem,
+    FAQ,
+    CorporateGiftingSection,
+    SeasonalSection,
 )
+from .revalidation import revalidate_homepage, revalidate_content
+
+logger = logging.getLogger(__name__)
+
+
+class RevalidatingModelAdmin(admin.ModelAdmin):
+    """
+    Base admin class that triggers frontend revalidation on save/delete.
+    Inherit from this for any model that affects the homepage or other cached pages.
+    """
+    # Override in subclass to customize which pages to revalidate
+    revalidate_on_change = True
+    revalidate_func = staticmethod(revalidate_homepage)
+    
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if self.revalidate_on_change:
+            action = 'updated' if change else 'created'
+            logger.info(f'{obj._meta.model_name} {action}, triggering revalidation')
+            self.revalidate_func()
+    
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        if self.revalidate_on_change:
+            logger.info(f'{obj._meta.model_name} deleted, triggering revalidation')
+            self.revalidate_func()
+    
+    def delete_queryset(self, request, queryset):
+        super().delete_queryset(request, queryset)
+        if self.revalidate_on_change:
+            logger.info(f'Bulk delete of {queryset.model._meta.model_name}, triggering revalidation')
+            self.revalidate_func()
 
 
 @admin.register(SustainableGiftingItem)
-class SustainableGiftingItemAdmin(admin.ModelAdmin):
+class SustainableGiftingItemAdmin(RevalidatingModelAdmin):
     """Admin for sustainable gifting items."""
     list_display = ['title', 'order', 'is_active', 'image_preview', 'created_at']
     list_filter = ['is_active', 'created_at']
@@ -66,7 +104,7 @@ class SustainableGiftingItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(TextTestimonial)
-class TextTestimonialAdmin(admin.ModelAdmin):
+class TextTestimonialAdmin(RevalidatingModelAdmin):
     """Admin for text testimonials."""
     list_display = ['name', 'rating', 'location', 'order', 'is_active', 'image_preview', 'created_at']
     list_filter = ['is_active', 'rating', 'created_at']
@@ -113,7 +151,7 @@ class TextTestimonialAdmin(admin.ModelAdmin):
 
 
 @admin.register(VideoTestimonial)
-class VideoTestimonialAdmin(admin.ModelAdmin):
+class VideoTestimonialAdmin(RevalidatingModelAdmin):
     """Admin for video testimonials."""
     list_display = ['name', 'rating', 'location', 'order', 'is_active', 'image_preview', 'created_at']
     list_filter = ['is_active', 'rating', 'created_at']
@@ -160,8 +198,9 @@ class VideoTestimonialAdmin(admin.ModelAdmin):
 
 
 @admin.register(AboutUsSection)
-class AboutUsSectionAdmin(admin.ModelAdmin):
+class AboutUsSectionAdmin(RevalidatingModelAdmin):
     """Admin for About Us sections."""
+    revalidate_func = staticmethod(revalidate_content)
     list_display = ['title', 'order', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['title', 'content']
@@ -197,8 +236,9 @@ class AboutUsSectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(OurStorySection)
-class OurStorySectionAdmin(admin.ModelAdmin):
+class OurStorySectionAdmin(RevalidatingModelAdmin):
     """Admin for Our Story sections."""
+    revalidate_func = staticmethod(revalidate_content)
     list_display = ['title', 'order', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['title', 'content']
@@ -234,8 +274,9 @@ class OurStorySectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(OurCommitmentSection)
-class OurCommitmentSectionAdmin(admin.ModelAdmin):
+class OurCommitmentSectionAdmin(RevalidatingModelAdmin):
     """Admin for Our Commitment sections."""
+    revalidate_func = staticmethod(revalidate_content)
     list_display = ['title', 'order', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['title', 'content']
@@ -407,8 +448,9 @@ class ContactSubmissionAdmin(admin.ModelAdmin):
 
 
 @admin.register(StoreCenter)
-class StoreCenterAdmin(admin.ModelAdmin):
+class StoreCenterAdmin(RevalidatingModelAdmin):
     """Admin for store centers."""
+    revalidate_func = staticmethod(revalidate_content)
     list_display = ['name', 'order', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'address']
@@ -444,8 +486,9 @@ class StoreCenterAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactInfo)
-class ContactInfoAdmin(admin.ModelAdmin):
+class ContactInfoAdmin(RevalidatingModelAdmin):
     """Admin for contact information."""
+    revalidate_func = staticmethod(revalidate_content)
     list_display = ['email', 'phone', 'is_active', 'updated_at']
     list_filter = ['is_active', 'created_at', 'updated_at']
     search_fields = ['email', 'phone', 'additional_info']
@@ -486,4 +529,158 @@ class ContactInfoAdmin(admin.ModelAdmin):
             if active_count <= 1:
                 return False
         return True
+
+
+@admin.register(HeroSection)
+class HeroSectionAdmin(RevalidatingModelAdmin):
+    """Admin for homepage hero section."""
+    list_display = ['headline', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['headline', 'subheadline']
+    ordering = ['-created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {
+            'fields': ('id', 'headline', 'highlight_text', 'subheadline')
+        }),
+        ('CTAs', {
+            'fields': ('primary_cta_text', 'primary_cta_link', 'secondary_cta_text', 'secondary_cta_link')
+        }),
+        ('Media', {
+            'fields': ('background_image_url',)
+        }),
+        ('Status', {'fields': ('is_active',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} hero section(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} hero section(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
+
+
+@admin.register(TrustBarItem)
+class TrustBarItemAdmin(RevalidatingModelAdmin):
+    """Admin for trust bar items."""
+    list_display = ['text', 'icon_name', 'order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['text', 'icon_name']
+    ordering = ['order', 'created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {'fields': ('id', 'icon_name', 'text')}),
+        ('Display', {'fields': ('order', 'is_active')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} item(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} item(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
+
+
+@admin.register(FAQ)
+class FAQAdmin(RevalidatingModelAdmin):
+    """Admin for FAQ items."""
+    list_display = ['question', 'order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['question', 'answer']
+    ordering = ['order', 'created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {'fields': ('id', 'question', 'answer')}),
+        ('Display', {'fields': ('order', 'is_active')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} FAQ(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} FAQ(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
+
+
+@admin.register(CorporateGiftingSection)
+class CorporateGiftingSectionAdmin(RevalidatingModelAdmin):
+    """Admin for corporate gifting section."""
+    list_display = ['title', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['title', 'description']
+    ordering = ['-created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {'fields': ('id', 'title', 'description', 'features')}),
+        ('CTAs', {'fields': ('primary_cta_text', 'primary_cta_link', 'secondary_cta_text', 'secondary_cta_link')}),
+        ('Media', {'fields': ('background_image_url',)}),
+        ('Status', {'fields': ('is_active',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} section(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} section(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
+
+
+@admin.register(SeasonalSection)
+class SeasonalSectionAdmin(RevalidatingModelAdmin):
+    """Admin for seasonal/occasion section."""
+    list_display = ['title', 'start_date', 'end_date', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['title', 'subtitle']
+    ordering = ['-start_date']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {'fields': ('id', 'title', 'subtitle', 'badge_text')}),
+        ('Dates', {'fields': ('start_date', 'end_date')}),
+        ('CTA', {'fields': ('cta_text', 'cta_link')}),
+        ('Styling', {'fields': ('background_color',)}),
+        ('Featured Products', {'fields': ('featured_product_ids',)}),
+        ('Status', {'fields': ('is_active',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} section(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} section(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
 

@@ -1,0 +1,35 @@
+# Dependencies (reinstalled in container via npm ci)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js build output and cache
+.next/
+out/
+.turbo/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Testing and coverage
+coverage/
+.nyc_output/
+
+# Misc
+README.md
+*.md
+next-env.d.ts

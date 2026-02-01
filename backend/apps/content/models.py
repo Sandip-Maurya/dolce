@@ -318,3 +318,129 @@ class ContactInfo(models.Model):
             # Deactivate all other contact info records
             ContactInfo.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
+
+
+class HeroSection(models.Model):
+    """Model for homepage hero section (singleton-like: only one active)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    headline = models.CharField(max_length=200)
+    highlight_text = models.CharField(max_length=100, help_text='Gold-colored portion of headline')
+    subheadline = models.TextField()
+    primary_cta_text = models.CharField(max_length=50)
+    primary_cta_link = models.CharField(max_length=255)
+    secondary_cta_text = models.CharField(max_length=50)
+    secondary_cta_link = models.CharField(max_length=255)
+    background_image_url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'hero_sections'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['is_active'])]
+
+    def __str__(self):
+        return self.headline
+
+
+class TrustBarItem(models.Model):
+    """Model for trust bar items below hero (e.g. Ships in 24h, Gift note)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    icon_name = models.CharField(max_length=50, help_text='Icon identifier: truck, gift, leaf, etc.')
+    text = models.CharField(max_length=100)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trust_bar_items'
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['order']),
+        ]
+
+    def __str__(self):
+        return self.text
+
+
+class FAQ(models.Model):
+    """Model for FAQ section on homepage."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    question = models.CharField(max_length=300)
+    answer = models.TextField()
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'faqs'
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['order']),
+        ]
+
+    def __str__(self):
+        return self.question[:50]
+
+
+class CorporateGiftingSection(models.Model):
+    """Model for corporate gifting band on homepage (singleton-like)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    features = models.JSONField(
+        default=list,
+        help_text='List of feature strings (e.g. Bulk orders, Custom branding)'
+    )
+    primary_cta_text = models.CharField(max_length=50)
+    primary_cta_link = models.CharField(max_length=255)
+    secondary_cta_text = models.CharField(max_length=50)
+    secondary_cta_link = models.CharField(max_length=255)
+    background_image_url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'corporate_gifting_sections'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['is_active'])]
+
+    def __str__(self):
+        return self.title
+
+
+class SeasonalSection(models.Model):
+    """Model for seasonal/occasion section (e.g. Diwali Gifting)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    subtitle = models.CharField(max_length=300, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    badge_text = models.CharField(max_length=100, blank=True)
+    cta_text = models.CharField(max_length=50)
+    cta_link = models.CharField(max_length=255)
+    background_color = models.CharField(max_length=50, blank=True)
+    featured_product_ids = models.JSONField(
+        default=list,
+        help_text='List of product UUIDs to feature'
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'seasonal_sections'
+        ordering = ['-start_date']
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+
+    def __str__(self):
+        return self.title

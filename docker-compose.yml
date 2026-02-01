@@ -32,6 +32,9 @@ services:
       - DB_NAME=${DB_NAME:-dolce_db}
       - DB_USER=${DB_USER:-dolce_user}
       - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      # Frontend revalidation
+      - FRONTEND_URL=http://frontend-next:3000
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
     volumes:
       - ./backend/media:/app/media
       - ./backend/staticfiles:/app/staticfiles
@@ -67,6 +70,8 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000/api
       - BACKEND_URL=http://backend:8000
+      # On-demand revalidation secret (must match backend)
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
     networks:
       - dolce_network
     depends_on:
@@ -95,7 +100,9 @@ services:
       # Mount init scripts
       - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
       - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
-    entrypoint: ["/bin/sh", "/scripts/nginx-entrypoint.sh"]
+    # nginx:alpine does not include `envsubst` by default; our init script uses it.
+    # Install gettext (provides envsubst) before running the entrypoint.
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache gettext >/dev/null && /bin/sh /scripts/nginx-entrypoint.sh"]
     environment:
       - NGINX_DOMAIN=${NGINX_DOMAIN:-}
       - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW:-}

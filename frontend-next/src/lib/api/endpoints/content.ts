@@ -107,6 +107,62 @@ export interface ContactInfo {
   opening_hours_sunday: string
 }
 
+export interface HeroSection {
+  id: string
+  headline: string
+  highlight_text: string
+  subheadline: string
+  primary_cta_text: string
+  primary_cta_link: string
+  secondary_cta_text: string
+  secondary_cta_link: string
+  background_image_url: string
+  is_active: boolean
+}
+
+export interface TrustBarItem {
+  id: string
+  icon_name: string
+  text: string
+  order: number
+  is_active: boolean
+}
+
+export interface FAQ {
+  id: string
+  question: string
+  answer: string
+  order: number
+  is_active: boolean
+}
+
+export interface CorporateGiftingSection {
+  id: string
+  title: string
+  description: string
+  features: string[]
+  primary_cta_text: string
+  primary_cta_link: string
+  secondary_cta_text: string
+  secondary_cta_link: string
+  background_image_url: string
+  is_active: boolean
+}
+
+export interface SeasonalSection {
+  id: string
+  title: string
+  subtitle: string
+  start_date: string
+  end_date: string
+  badge_text: string
+  cta_text: string
+  cta_link: string
+  background_color: string
+  featured_product_ids: string[]
+  is_active: boolean
+}
+
 export const contentApi = {
   fetchSustainableGiftingItems: () =>
     apiClient.get<SustainableGiftingItem[]>('/content/sustainable-gifting/'),
@@ -130,4 +186,32 @@ export const contentApi = {
     apiClient.get<ContactInfo>('/content/contact-info/'),
   fetchStoreCenters: () =>
     apiClient.get<StoreCenter[]>('/content/store-centers/'),
+  fetchHeroSection: () =>
+    apiClient.get<HeroSection>('/content/hero/').catch((e) => {
+      // Return null for any error (404, network timeout, etc.) - page will use defaults
+      console.error('Failed to fetch hero section', e)
+      return null
+    }) as Promise<HeroSection | null>,
+  fetchTrustBarItems: () =>
+    apiClient.get<TrustBarItem[]>('/content/trust-bar/').catch((e) => {
+      console.error('Failed to fetch trust bar items', e)
+      return []
+    }),
+  fetchFAQs: () =>
+    apiClient.get<FAQ[]>('/content/faqs/').catch((e) => {
+      console.error('Failed to fetch FAQs', e)
+      return []
+    }),
+  fetchCorporateGifting: () =>
+    apiClient.get<CorporateGiftingSection>('/content/corporate-gifting/').catch((e) => {
+      // Return null for any error (404, network timeout, etc.) - page will use defaults
+      console.error('Failed to fetch corporate gifting', e)
+      return null
+    }) as Promise<CorporateGiftingSection | null>,
+  fetchSeasonalSection: () =>
+    apiClient.get<SeasonalSection>('/content/seasonal/').catch((e) => {
+      // Return null for any error (404, network timeout, etc.) - page will use defaults
+      console.error('Failed to fetch seasonal section', e)
+      return null
+    }) as Promise<SeasonalSection | null>,
 }

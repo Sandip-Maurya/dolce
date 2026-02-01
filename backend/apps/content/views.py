@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
+from django.utils import timezone
 from .models import (
     SustainableGiftingItem,
     TextTestimonial,
@@ -18,6 +19,11 @@ from .models import (
     ContactSubmission,
     ContactInfo,
     StoreCenter,
+    HeroSection,
+    TrustBarItem,
+    FAQ,
+    CorporateGiftingSection,
+    SeasonalSection,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -31,6 +37,11 @@ from .serializers import (
     ContactSubmissionSerializer,
     ContactInfoSerializer,
     StoreCenterSerializer,
+    HeroSectionSerializer,
+    TrustBarItemSerializer,
+    FAQSerializer,
+    CorporateGiftingSectionSerializer,
+    SeasonalSectionSerializer,
 )
 
 
@@ -259,5 +270,95 @@ def store_centers_view(request):
     """Get all active store centers."""
     queryset = StoreCenter.objects.filter(is_active=True).order_by('order')
     serializer = StoreCenterSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get hero section',
+    description='Get active hero section for homepage. Returns 404 if none active (frontend uses fallback).',
+    responses={200: HeroSectionSerializer, 404: None},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def hero_view(request):
+    """Get active hero section. 404 if none (frontend uses static fallback)."""
+    instance = HeroSection.objects.filter(is_active=True).order_by('-created_at').first()
+    if not instance:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = HeroSectionSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='List trust bar items',
+    description='Get all active trust bar items ordered by order field',
+    responses={200: TrustBarItemSerializer(many=True)},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def trust_bar_list_view(request):
+    """Get all active trust bar items."""
+    queryset = TrustBarItem.objects.filter(is_active=True).order_by('order')
+    serializer = TrustBarItemSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='List FAQs',
+    description='Get all active FAQs ordered by order field',
+    responses={200: FAQSerializer(many=True)},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def faqs_list_view(request):
+    """Get all active FAQs."""
+    queryset = FAQ.objects.filter(is_active=True).order_by('order')
+    serializer = FAQSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get corporate gifting section',
+    description='Get active corporate gifting section. Returns 404 if none (frontend uses fallback).',
+    responses={200: CorporateGiftingSectionSerializer, 404: None},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def corporate_gifting_view(request):
+    """Get active corporate gifting section. 404 if none (frontend uses fallback)."""
+    instance = CorporateGiftingSection.objects.filter(is_active=True).order_by('-created_at').first()
+    if not instance:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = CorporateGiftingSectionSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get current seasonal section',
+    description='Get currently active seasonal section (date within start_date and end_date). Returns 404 if none.',
+    responses={200: SeasonalSectionSerializer, 404: None},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def seasonal_view(request):
+    """Get currently active seasonal section (today between start_date and end_date)."""
+    today = timezone.now().date()
+    instance = (
+        SeasonalSection.objects.filter(
+            is_active=True,
+            start_date__lte=today,
+            end_date__gte=today,
+        )
+        .order_by('-start_date')
+        .first()
+    )
+    if not instance:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = SeasonalSectionSerializer(instance)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
