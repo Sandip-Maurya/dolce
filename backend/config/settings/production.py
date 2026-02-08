@@ -49,16 +49,9 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Static + media files
 #
-# Static files are ALWAYS served locally (not from S3).
-# Media files use S3 when USE_S3=True (configured in base.py).
-# This ensures collectstatic works without S3 permissions.
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_URL = '/static/'
-
-# Media is local only when USE_S3=False
-if not globals().get('USE_S3', False):
-    MEDIA_ROOT = BASE_DIR / 'media'
-    MEDIA_URL = '/media/'
+# Static files are always served locally (configured in base.py)
+# Media files go to S3 when USE_S3=True (configured in base.py)
+# No overrides needed here - base.py handles everything
 
 # Logging configuration for production
 LOGGING = {
