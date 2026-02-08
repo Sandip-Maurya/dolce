@@ -1,4 +1,4 @@
-import type { HeroSection, TrustBarItem, FAQ, CorporateGiftingSection } from '@/lib/api/endpoints/content'
+import type { HeroSection, TrustBarItem, FAQ, CorporateGiftingSection, BrandStorySection } from '@/lib/api/endpoints/content'
 
 export const defaultHero: Omit<HeroSection, 'id' | 'is_active'> & { id?: string; is_active?: boolean } = {
   headline: 'Gifting that feels premium',
@@ -84,4 +84,19 @@ export const defaultCorporateGifting: Omit<CorporateGiftingSection, 'id' | 'is_a
   secondary_cta_text: 'WhatsApp us',
   secondary_cta_link: 'https://wa.me/919876543210',
   background_image_url: '',
+}
+
+export const defaultBrandStory: Omit<BrandStorySection, 'id' | 'is_active'> & {
+  id?: string
+  is_active?: boolean
+} = {
+  title: 'Why Dolce Fiore',
+  subtitle: 'Health-first indulgence, artisan-made, and packaging that becomes part of the gift.',
+  features: [
+    'Health-first indulgence — sugar-free and guilt-free without compromise',
+    'Artisan-made with local partners across India',
+    "Reusable, eco packaging that's part of the gift",
+  ],
+  cta_text: 'Read the full story',
+  cta_link: '/about',
 }

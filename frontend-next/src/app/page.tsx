@@ -14,6 +14,7 @@ import { CorporateGiftingBand } from '@/components/home/CorporateGiftingBand'
 import { FAQSection } from '@/components/home/FAQSection'
 import { catalogApi } from '@/lib/api/endpoints/catalog'
 import { contentApi } from '@/lib/api/endpoints/content'
+import { SUSTAINABLE_GIFTING_DEFAULTS } from '@/lib/constants/images'
 
 // Revalidate every 24 hours as fallback; on-demand revalidation handles immediate updates
 // when content is changed in Django admin
@@ -32,6 +33,7 @@ export default async function Home() {
     seasonalSection,
     homepageCategories,
     allCategories,
+    brandStorySection,
   ] = await Promise.all([
     catalogApi.fetchProducts().catch((e) => {
       console.error('Failed to fetch products', e)
@@ -56,6 +58,7 @@ export default async function Home() {
     contentApi.fetchSeasonalSection(),
     catalogApi.fetchHomepageCategories(),
     catalogApi.fetchCategoriesWithSubcategories().catch(() => []),
+    contentApi.fetchBrandStorySection(),
   ])
 
   const featuredHampers =
@@ -77,7 +80,7 @@ export default async function Home() {
       <TrustBar items={trustBarItems} />
 
       <SectionWrapper variant="muted" showBottomDivider dividerStyle="gold">
-        <BrandStorySection />
+        <BrandStorySection data={brandStorySection} />
       </SectionWrapper>
 
       <SectionWrapper variant="default" showTopDivider showBottomDivider dividerStyle="border">
@@ -87,26 +90,22 @@ export default async function Home() {
         />
       </SectionWrapper>
 
-      <SectionWrapper variant="default" showBottomDivider dividerStyle="border">
-        <Container>
-          <SectionTitle
-            title="Featured Hampers"
-            subtitle="Curated collections of premium, sustainable treats"
-            align="center"
-          />
-          {featuredHampers.length > 0 ? (
+      {featuredHampers.length > 0 && (
+        <SectionWrapper variant="default" showBottomDivider dividerStyle="border">
+          <Container>
+            <SectionTitle
+              title="Featured Hampers"
+              subtitle="Curated collections of premium, sustainable treats"
+              align="center"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredHampers.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          ) : (
-            <p className="text-center text-charcoal-600 mb-12">
-              Discover our handcrafted selection coming soon...
-            </p>
-          )}
-        </Container>
-      </SectionWrapper>
+          </Container>
+        </SectionWrapper>
+      )}
 
       {seasonalSection && (
         <SectionWrapper variant="muted" showTopDivider showBottomDivider dividerStyle="border">
@@ -114,26 +113,22 @@ export default async function Home() {
         </SectionWrapper>
       )}
 
-      <SectionWrapper variant="muted" showBottomDivider dividerStyle="border">
-        <Container>
-          <SectionTitle
-            title="Healthy Indulgences"
-            subtitle="Sugar-free, organic, and guilt-free treats that delight"
-            align="center"
-          />
-          {healthyIndulgences.length > 0 ? (
+      {healthyIndulgences.length > 0 && (
+        <SectionWrapper variant="muted" showBottomDivider dividerStyle="border">
+          <Container>
+            <SectionTitle
+              title="Healthy Indulgences"
+              subtitle="Sugar-free, organic, and guilt-free treats that delight"
+              align="center"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {healthyIndulgences.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          ) : (
-            <p className="text-center text-charcoal-600 mb-12">
-              Our curated selection coming soon...
-            </p>
-          )}
-        </Container>
-      </SectionWrapper>
+          </Container>
+        </SectionWrapper>
+      )}
 
       <SectionWrapper variant="dark" showTopDivider showBottomDivider dividerStyle="gold">
         <CorporateGiftingBand data={corporateGifting} />
@@ -170,12 +165,12 @@ export default async function Home() {
                 </div>
               ))
             ) : (
-              <>
-                <div className="space-y-6">
+              SUSTAINABLE_GIFTING_DEFAULTS.map((item, index) => (
+                <div key={index} className="space-y-6">
                   <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-beige-100">
                     <Image
-                      src="https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=800&q=80&auto=format&fit=crop"
-                      alt="Eco-friendly kraft paper packaging"
+                      src={item.image_url}
+                      alt={item.alt}
                       fill
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, 50vw"
@@ -183,75 +178,15 @@ export default async function Home() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-heading text-charcoal-900 mb-4">
-                      Reusable Materials
+                      {item.title}
                     </h3>
                     <p className="text-charcoal-700 leading-relaxed">
-                      Every hamper is thoughtfully wrapped in reusable kraft
-                      paper, jute bags, and glass containers. These materials
-                      aren&apos;t just packaging—they&apos;re part of the gift,
-                      designed to be used again and again in your home.
+                      {item.description}
                     </p>
                   </div>
                 </div>
-                <div className="space-y-6">
-                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-beige-100">
-                    <Image
-                      src="https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80&auto=format&fit=crop"
-                      alt="Wooden trays and natural materials"
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-heading text-charcoal-900 mb-4">
-                      Conscious Living
-                    </h3>
-                    <p className="text-charcoal-700 leading-relaxed">
-                      We partner with local artisans who share our commitment to
-                      sustainability. From wooden trays to cotton wraps, every
-                      element is chosen for its minimal environmental impact and
-                      maximum beauty.
-                    </p>
-                  </div>
-                </div>
-              </>
+              ))
             )}
-          </div>
-        </Container>
-      </SectionWrapper>
-
-      <SectionWrapper variant="muted" showBottomDivider dividerStyle="border">
-        <Container>
-          <SectionTitle title="Our Commitment" align="center" />
-          <div className="max-w-3xl mx-auto">
-            <p className="text-base sm:text-lg text-charcoal-700 leading-relaxed">
-              At Dolce Fiore, sustainability isn&apos;t an afterthought—it&apos;s
-              woven into every decision we make. We believe that premium gifting
-              can and should be kind to the planet, creating beautiful moments
-              without leaving a heavy footprint.
-            </p>
-          </div>
-        </Container>
-      </SectionWrapper>
-
-      <SectionWrapper variant="muted" showBottomDivider dividerStyle="border">
-        <Container>
-          <SectionTitle title="Our Story" align="center" />
-          <div className="max-w-3xl mx-auto">
-            <p className="text-base sm:text-lg text-charcoal-700 leading-relaxed mb-12">
-              Dolce Fiore began as a homegrown venture with a simple dream — to
-              craft thoughtful, sustainable gifting experiences. What started
-              four years ago with a passion for healthy indulgence has grown into
-              a celebration of creativity and conscious living.
-            </p>
-            <p className="text-base sm:text-lg text-charcoal-700 leading-relaxed">
-              We proudly partner with local artisans across India, bringing
-              tradition and sustainability into every creation. Every hamper is
-              handcrafted with care, featuring organic ingredients, air-fried
-              savories, and sugar-free chocolates — all wrapped in eco-friendly,
-              reusable packaging.
-            </p>
           </div>
         </Container>
       </SectionWrapper>

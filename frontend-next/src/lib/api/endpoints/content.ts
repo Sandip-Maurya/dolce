@@ -163,6 +163,16 @@ export interface SeasonalSection {
   is_active: boolean
 }
 
+export interface BrandStorySection {
+  id: string
+  title: string
+  subtitle: string
+  features: string[]
+  cta_text: string
+  cta_link: string
+  is_active: boolean
+}
+
 export const contentApi = {
   fetchSustainableGiftingItems: () =>
     apiClient.get<SustainableGiftingItem[]>('/content/sustainable-gifting/'),
@@ -214,4 +224,10 @@ export const contentApi = {
       console.error('Failed to fetch seasonal section', e)
       return null
     }) as Promise<SeasonalSection | null>,
+  fetchBrandStorySection: () =>
+    apiClient.get<BrandStorySection>('/content/brand-story/').catch((e) => {
+      // Return null for any error (404, network timeout, etc.) - page will use defaults
+      console.error('Failed to fetch brand story section', e)
+      return null
+    }) as Promise<BrandStorySection | null>,
 }

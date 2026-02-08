@@ -24,6 +24,7 @@ from .models import (
     FAQ,
     CorporateGiftingSection,
     SeasonalSection,
+    BrandStorySection,
 )
 from .serializers import (
     SustainableGiftingItemSerializer,
@@ -42,6 +43,7 @@ from .serializers import (
     FAQSerializer,
     CorporateGiftingSectionSerializer,
     SeasonalSectionSerializer,
+    BrandStorySectionSerializer,
 )
 
 
@@ -360,5 +362,22 @@ def seasonal_view(request):
     if not instance:
         return Response(status=status.HTTP_404_NOT_FOUND)
     serializer = SeasonalSectionSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Content'],
+    summary='Get brand story section',
+    description='Get active brand story section for homepage ("Why Dolce Fiore"). Returns 404 if none (frontend uses fallback).',
+    responses={200: BrandStorySectionSerializer, 404: None},
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def brand_story_view(request):
+    """Get active brand story section. 404 if none (frontend uses static fallback)."""
+    instance = BrandStorySection.objects.filter(is_active=True).order_by('-created_at').first()
+    if not instance:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = BrandStorySectionSerializer(instance)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

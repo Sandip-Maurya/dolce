@@ -444,3 +444,32 @@ class SeasonalSection(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class BrandStorySection(models.Model):
+    """Model for 'Why Dolce Fiore' section on homepage (singleton-like: only one active)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200, default='Why Dolce Fiore')
+    subtitle = models.CharField(
+        max_length=300,
+        default='Health-first indulgence, artisan-made, and packaging that becomes part of the gift.'
+    )
+    features = models.JSONField(
+        default=list,
+        help_text='List of feature bullet points (e.g. ["Health-first indulgence", "Artisan-made"])'
+    )
+    cta_text = models.CharField(max_length=50, default='Read the full story')
+    cta_link = models.CharField(max_length=255, default='/about')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'brand_story_sections'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['is_active'])]
+        verbose_name = 'Brand Story Section'
+        verbose_name_plural = 'Brand Story Sections'
+
+    def __str__(self):
+        return self.title

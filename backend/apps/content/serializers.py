@@ -19,6 +19,7 @@ from .models import (
     FAQ,
     CorporateGiftingSection,
     SeasonalSection,
+    BrandStorySection,
 )
 
 
@@ -295,6 +296,22 @@ class SeasonalSectionSerializer(serializers.ModelSerializer):
             'cta_link',
             'background_color',
             'featured_product_ids',
+            'is_active',
+        ]
+
+
+class BrandStorySectionSerializer(serializers.ModelSerializer):
+    """Serializer for 'Why Dolce Fiore' brand story section."""
+    
+    class Meta:
+        model = BrandStorySection
+        fields = [
+            'id',
+            'title',
+            'subtitle',
+            'features',
+            'cta_text',
+            'cta_link',
             'is_active',
         ]
 

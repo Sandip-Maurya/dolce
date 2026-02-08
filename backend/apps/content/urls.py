@@ -19,6 +19,7 @@ from .views import (
     faqs_list_view,
     corporate_gifting_view,
     seasonal_view,
+    brand_story_view,
 )
 
 app_name = 'content'
@@ -40,5 +41,6 @@ urlpatterns = [
     path('faqs/', faqs_list_view, name='faqs-list'),
     path('corporate-gifting/', corporate_gifting_view, name='corporate-gifting'),
     path('seasonal/', seasonal_view, name='seasonal'),
+    path('brand-story/', brand_story_view, name='brand-story'),
 ]
 

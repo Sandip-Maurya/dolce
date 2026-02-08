@@ -21,6 +21,7 @@ from .models import (
     FAQ,
     CorporateGiftingSection,
     SeasonalSection,
+    BrandStorySection,
 )
 from .revalidation import revalidate_homepage, revalidate_content
 
@@ -668,6 +669,38 @@ class SeasonalSectionAdmin(RevalidatingModelAdmin):
         ('CTA', {'fields': ('cta_text', 'cta_link')}),
         ('Styling', {'fields': ('background_color',)}),
         ('Featured Products', {'fields': ('featured_product_ids',)}),
+        ('Status', {'fields': ('is_active',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
+    )
+
+    actions = ['make_active', 'make_inactive']
+
+    def make_active(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, f'{queryset.count()} section(s) marked as active.')
+    make_active.short_description = 'Mark as active'
+
+    def make_inactive(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, f'{queryset.count()} section(s) marked as inactive.')
+    make_inactive.short_description = 'Mark as inactive'
+
+
+@admin.register(BrandStorySection)
+class BrandStorySectionAdmin(RevalidatingModelAdmin):
+    """Admin for 'Why Dolce Fiore' brand story section on homepage."""
+    list_display = ['title', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['title', 'subtitle']
+    ordering = ['-created_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('Content', {
+            'fields': ('id', 'title', 'subtitle', 'features'),
+            'description': 'Features should be a JSON list of strings, e.g. ["Health-first indulgence", "Artisan-made"]'
+        }),
+        ('CTA', {'fields': ('cta_text', 'cta_link')}),
         ('Status', {'fields': ('is_active',)}),
         ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
