@@ -26,6 +26,24 @@ It matches the current repo structure:
 - **Dev on EC2** (optional):
   - `docker-compose.yml` + `docker-compose.dev.yml` (+ `docker-compose.dev-https.yml` if you want HTTPS)
 
+## Recommended deployment method (GitHub Actions + GHCR, no builds on EC2)
+
+Building images on small EC2 instances is slow and can fail (Next.js build, low disk space, etc.).
+Instead, use GitHub Actions to build Docker images and push them to **GHCR**, then have EC2 only **pull** and **run** them.
+
+- Guide: `GHCR_GITHUB_ACTIONS_EC2_GUIDE.md`
+- Key idea:
+  - **GitHub**: push code → Actions builds images
+  - **EC2**: `docker compose pull` → `docker compose up -d` (no `--build`)
+
+When using GHCR images, include the override compose file:
+- `docker-compose.ghcr.yml`
+
+Notes:
+- If you deploy with `docker-compose.dev-https.yml` on EC2, **do not** include `docker-compose.dev.yml` in the same command.
+  - `docker-compose.dev.yml` mounts `/etc/nginx/nginx.conf` read-only (local dev convenience)
+  - `docker-compose.dev-https.yml` generates `/etc/nginx/nginx.conf` from a template (needs write access)
+
 ## Branching & promotion workflow (GitHub → EC2)
 
 Your desired flow:
@@ -279,7 +297,12 @@ RAZORPAY_WEBHOOK_SECRET=...
 ## 6) First production deploy
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
+# Preferred (GHCR): pull pre-built images (no builds on EC2)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+
+# Fallback (not recommended): build on EC2
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
 ```
 
 Verify:
@@ -307,7 +330,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 ```bash
 cd ~/dolce
 git pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
+
+# Preferred (GHCR): pull latest images built by GitHub Actions
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+
+# Fallback (not recommended): build on EC2
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
 ```
 
 You can also use `scripts/deploy-prod.sh`, but note it currently uses only `docker-compose.yml` + `docker-compose.prod.yml`. If you use HTTPS, prefer the 3-file compose command above (or update the script accordingly).

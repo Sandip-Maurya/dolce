@@ -1,5 +1,6 @@
 # Development HTTPS overrides for EC2 deployment
-# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dev-https.yml up
+# Use with (EC2): docker compose -f docker-compose.yml -f docker-compose.dev-https.yml up
+# NOTE: Do NOT combine with docker-compose.dev.yml (it mounts /etc/nginx/nginx.conf read-only, which prevents template generation).
 services:
   backend:
     environment:

@@ -14,6 +14,12 @@ from .models import (
     ContactSubmission,
     ContactInfo,
     StoreCenter,
+    HeroSection,
+    TrustBarItem,
+    FAQ,
+    CorporateGiftingSection,
+    SeasonalSection,
+    BrandStorySection,
 )
 
 
@@ -218,4 +224,94 @@ class ContactInfoSerializer(serializers.ModelSerializer):
             'opening_hours_sunday',
         ]
         read_only_fields = ['id']
+
+
+class HeroSectionSerializer(serializers.ModelSerializer):
+    """Serializer for homepage hero section."""
+    
+    class Meta:
+        model = HeroSection
+        fields = [
+            'id',
+            'headline',
+            'highlight_text',
+            'subheadline',
+            'primary_cta_text',
+            'primary_cta_link',
+            'secondary_cta_text',
+            'secondary_cta_link',
+            'background_image_url',
+            'is_active',
+        ]
+
+
+class TrustBarItemSerializer(serializers.ModelSerializer):
+    """Serializer for trust bar items."""
+    
+    class Meta:
+        model = TrustBarItem
+        fields = ['id', 'icon_name', 'text', 'order', 'is_active']
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    """Serializer for FAQ items."""
+    
+    class Meta:
+        model = FAQ
+        fields = ['id', 'question', 'answer', 'order', 'is_active']
+
+
+class CorporateGiftingSectionSerializer(serializers.ModelSerializer):
+    """Serializer for corporate gifting section."""
+    
+    class Meta:
+        model = CorporateGiftingSection
+        fields = [
+            'id',
+            'title',
+            'description',
+            'features',
+            'primary_cta_text',
+            'primary_cta_link',
+            'secondary_cta_text',
+            'secondary_cta_link',
+            'background_image_url',
+            'is_active',
+        ]
+
+
+class SeasonalSectionSerializer(serializers.ModelSerializer):
+    """Serializer for seasonal/occasion section."""
+    
+    class Meta:
+        model = SeasonalSection
+        fields = [
+            'id',
+            'title',
+            'subtitle',
+            'start_date',
+            'end_date',
+            'badge_text',
+            'cta_text',
+            'cta_link',
+            'background_color',
+            'featured_product_ids',
+            'is_active',
+        ]
+
+
+class BrandStorySectionSerializer(serializers.ModelSerializer):
+    """Serializer for 'Why Dolce Fiore' brand story section."""
+    
+    class Meta:
+        model = BrandStorySection
+        fields = [
+            'id',
+            'title',
+            'subtitle',
+            'features',
+            'cta_text',
+            'cta_link',
+            'is_active',
+        ]
 

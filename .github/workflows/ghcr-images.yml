@@ -1,16 +1,27 @@
-name: Build and Push Docker Images to GHCR
+name: Build and Deploy to GHCR + S3
 
 on:
   push:
     branches:
       - dev
+      - prod
     paths:
       - 'backend/**'
       - 'frontend-next/**'
       - '.github/workflows/ghcr-images.yml'
       - 'docker-compose.yml'
       - 'docker-compose.ghcr.yml'
-  workflow_dispatch: # Allow manual trigger
+      - 'docker-compose.ghcr-prod.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 env:
   REGISTRY: ghcr.io
@@ -24,9 +35,32 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      image_tag: ${{ steps.set-env.outputs.image_tag }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+              echo "environment=production" >> $GITHUB_OUTPUT
+              echo "image_tag=prod" >> $GITHUB_OUTPUT
+            else
+              echo "environment=staging" >> $GITHUB_OUTPUT
+              echo "image_tag=dev" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.ref }}" == "refs/heads/prod" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "image_tag=prod" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "image_tag=dev" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,7 +78,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=raw,value=${{ steps.set-env.outputs.image_tag }}
             type=sha,prefix=sha-
 
       - name: Build and push backend image
@@ -65,7 +99,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=raw,value=${{ steps.set-env.outputs.image_tag }}
             type=sha,prefix=sha-
 
       - name: Build and push frontend image
@@ -84,8 +118,123 @@ jobs:
 
       - name: Image digest summary
         run: |
-          echo "### Backend Image 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Summary 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ steps.set-env.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Backend Image" >> $GITHUB_STEP_SUMMARY
           echo "- Tags: ${{ steps.backend-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Frontend Image 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "### Frontend Image" >> $GITHUB_STEP_SUMMARY
           echo "- Tags: ${{ steps.frontend-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  upload-static-assets:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [ "${{ needs.build-and-push.outputs.environment }}" == "production" ]; then
+            echo "s3_bucket=${{ secrets.S3_BUCKET_PROD }}" >> $GITHUB_OUTPUT
+            echo "cloudfront_dist=${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" >> $GITHUB_OUTPUT
+          else
+            echo "s3_bucket=${{ secrets.S3_BUCKET_STAGING }}" >> $GITHUB_OUTPUT
+            echo "cloudfront_dist=${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Next.js static assets from image
+        run: |
+          # Pull the frontend image we just built
+          docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+          
+          # Create a temporary container to extract files
+          CONTAINER_ID=$(docker create ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }})
+          
+          # Extract the .next/static directory
+          mkdir -p ./extracted/_next/static
+          docker cp $CONTAINER_ID:/app/.next/static ./extracted/_next/
+          
+          # Clean up
+          docker rm $CONTAINER_ID
+          
+          echo "Extracted static files:"
+          ls -la ./extracted/_next/static/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload static assets to S3
+        run: |
+          # Upload Next.js static assets with aggressive caching
+          aws s3 sync ./extracted/_next/static s3://${{ steps.set-env.outputs.s3_bucket }}/_next/static \
+            --cache-control "public, max-age=31536000, immutable" \
+            --delete
+          
+          echo "### S3 Upload Summary 📦" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Bucket:** ${{ steps.set-env.outputs.s3_bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Path:** /_next/static/" >> $GITHUB_STEP_SUMMARY
+
+      - name: Invalidate CloudFront cache
+        if: ${{ steps.set-env.outputs.cloudfront_dist != '' }}
+        run: |
+          # Create invalidation for static assets
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.set-env.outputs.cloudfront_dist }} \
+            --paths "/_next/static/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          
+          echo "### CloudFront Invalidation 🔄" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Distribution:** ${{ steps.set-env.outputs.cloudfront_dist }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Invalidation ID:** $INVALIDATION_ID" >> $GITHUB_STEP_SUMMARY
+          echo "**Paths:** /_next/static/*" >> $GITHUB_STEP_SUMMARY
+
+  deployment-summary:
+    needs: [build-and-push, upload-static-assets]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.build-and-push.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build-and-push.outputs.environment }}" == "production" ]; then
+            echo "SSH to **production** Lightsail and run:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'cd ~/dolce && git pull origin prod' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml pull' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml up -d' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "SSH to **staging** Lightsail and run:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'cd ~/dolce && git pull origin dev' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
