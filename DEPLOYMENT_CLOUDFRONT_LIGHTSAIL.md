@@ -1,237 +1,174 @@
 # CloudFront + Lightsail Deployment Guide
 
-This guide deploys **Dolce Fiore** using **AWS CloudFront** as the entry point with **Lightsail** for compute and **S3** for static assets.
+This guide deploys **Dolce Fiore** using **AWS CloudFront** as the entry point with **Lightsail** for compute and **S3** for media files.
 
 ## Architecture Overview
 
 ```
                                     ┌─────────────────────────────────────┐
                                     │           CloudFront                │
-                                    │    (Single Entry Point / CDN)       │
+                                    │    (CDN + SSL Termination)          │
                                     └──────────────┬──────────────────────┘
                                                    │
-                     ┌─────────────────────────────┼─────────────────────────────┐
-                     │                             │                             │
-                     ▼                             ▼                             ▼
-        ┌────────────────────┐      ┌─────────────────────────┐
-        │   S3 Origin        │      │   Lightsail Instance    │
-        │  (Static Assets)   │      │       (2GB RAM)         │
-        │                    │      │                         │
-        │ • /_next/static/*  │      │  ┌─────────────────┐   │
-        │ • /static/*        │      │  │   PostgreSQL    │   │
-        │ • /media/*         │      │  │   :5432         │   │
-        │                    │      │  └─────────────────┘   │
-        │ Aggressive caching │      │  ┌─────────────────┐   │
-        │ (1 year hashed)    │      │  │   Django API    │   │
-        └────────────────────┘      │  │   :8000 ←───────────── CloudFront /admin/*, /api/*
-                                    │  └─────────────────┘   │
-                                    │  ┌─────────────────┐   │
-                                    │  │   Next.js SSR   │   │
-                                    │  │   :3000 ←───────────── CloudFront /* (default)
-                                    │  └─────────────────┘   │
-                                    └─────────────────────────┘
+                          ┌────────────────────────┼────────────────────────┐
+                          │                        │                        │
+                          ▼                        ▼                        ▼
+             ┌────────────────────┐   ┌─────────────────────────┐
+             │   S3 Bucket        │   │   Lightsail Instance    │
+             │   (Media Only)     │   │       (2GB RAM)         │
+             │                    │   │                         │
+             │ • /media/*         │   │  ┌─────────────────┐   │
+             │   (user uploads)   │   │  │   PostgreSQL    │   │
+             │                    │   │  │   :5432         │   │
+             └────────────────────┘   │  └─────────────────┘   │
+                                      │  ┌─────────────────┐   │
+                                      │  │   Django API    │   │
+                                      │  │   :8000 ←───────────── /admin/*, /api/*
+                                      │  └─────────────────┘   │
+                                      │  ┌─────────────────┐   │
+                                      │  │   Next.js SSR   │   │
+                                      │  │   :3000 ←───────────── /* (including /_next/static/*)
+                                      │  └─────────────────┘   │
+                                      └─────────────────────────┘
 
-No Nginx! CloudFront routes directly to services on different ports.
+Simplified: Next.js serves its own static files. S3 only for media uploads.
 ```
+
+## Key Design Decisions
+
+1. **No S3 for Next.js static files** - Next.js serves `/_next/static/*` directly
+2. **CloudFront caches at edge** - Same performance as S3 origin
+3. **S3 only for media** - User-uploaded images via Django
+4. **No AWS secrets in GitHub** - Simpler CI/CD pipeline
 
 ## Environments
 
-| Environment | Domain | CloudFront | S3 Bucket | Lightsail | Git Branch |
-|-------------|--------|------------|-----------|-----------|------------|
+| Environment | Domain | CloudFront | S3 Bucket | Lightsail | Branch |
+|-------------|--------|------------|-----------|-----------|--------|
 | **Staging** | kakshaonline.com | dist-staging | dolce-staging-assets | dolce-staging | `dev` |
 | **Production** | dolcefiore.in | dist-prod | dolce-prod-assets | dolce-prod | `prod` |
 
-## Request Flow
+## Request Routing (CloudFront Behaviors)
 
-1. **User Request** → CloudFront (CDN edge location)
-2. **CloudFront** evaluates cache behaviors and routes to origin:
+| Priority | Path Pattern | Origin | Cache | Notes |
+|----------|--------------|--------|-------|-------|
+| 1 | `/media/*` | S3 | 1 week | User uploads |
+| 2 | `/admin/*` | Lightsail:8000 | Disabled | Django admin |
+| 3 | `/api/*` | Lightsail:8000 | Disabled | REST API |
+| 4 | `/orders/*` | Lightsail:3000 | Disabled | Authenticated |
+| 5 | `/profile/*` | Lightsail:3000 | Disabled | Authenticated |
+| 6 | `/cart` | Lightsail:3000 | Disabled | Authenticated |
+| 7 | `/checkout/*` | Lightsail:3000 | Disabled | Authenticated |
+| 8 | `/login` | Lightsail:3000 | Disabled | Auth page |
+| 9 | `/signup` | Lightsail:3000 | Disabled | Auth page |
+| Default | `*` | Lightsail:3000 | 5 min | SSR + static |
 
-| Path Pattern | Origin | Port | Cache |
-|--------------|--------|------|-------|
-| `/_next/static/*` | S3 | - | 1 year (immutable) |
-| `/static/*` | S3 | - | 1 year |
-| `/media/*` | S3 | - | 1 week |
-| `/admin/*` | Lightsail | 8000 | Disabled |
-| `/api/*` | Lightsail | 8000 | Disabled |
-| `/orders/*` | Lightsail | 3000 | Disabled |
-| `/profile/*` | Lightsail | 3000 | Disabled |
-| `/cart`, `/checkout/*` | Lightsail | 3000 | Disabled |
-| `/*` (default) | Lightsail | 3000 | 5 min (public pages) |
+**Note**: `/_next/static/*` goes to Lightsail:3000 (default behavior). CloudFront caches these files at the edge with long TTL because they have unique hashed filenames.
 
-## Cost Estimate (Early Stage)
+## Cost Estimate
 
 | Component | Staging | Production | Total |
 |-----------|---------|------------|-------|
 | Lightsail 2GB | $12/mo | $12/mo | $24/mo |
-| S3 (minimal) | ~$1 | ~$1 | $2/mo |
+| S3 (media only) | ~$1 | ~$1 | $2/mo |
 | CloudFront | ~$1-5 | ~$1-5 | $2-10/mo |
 | **Total** | | | **~$28-36/mo** |
-
-## Resource Allocation (2GB Instance, No Nginx)
-
-| Service | Memory Limit | Memory Reserved | CPU Limit |
-|---------|-------------|-----------------|-----------|
-| PostgreSQL | 512 MB | 256 MB | 0.5 |
-| Django | 640 MB | 320 MB | 0.6 |
-| Next.js | 768 MB | 384 MB | 0.75 |
-| **Total** | ~1.9 GB | ~960 MB | - |
-
-*~100MB headroom for OS and Docker overhead*
 
 ---
 
 ## Part 1: AWS Setup
 
-### 1.1 Create S3 Buckets
-
-Create two S3 buckets for staging and production static assets.
-
-#### Staging Bucket: `dolce-staging-assets`
+### 1.1 Create S3 Bucket (Media Only)
 
 1. Go to **S3 Console** → **Create bucket**
-2. **Bucket name**: `dolce-staging-assets`
-3. **Region**: `ap-south-1` (Mumbai) or your preferred region
-4. **Block Public Access**: Keep **enabled** (CloudFront will access via OAC)
-5. **Versioning**: Optional (recommended for production)
-6. Click **Create bucket**
-
-#### Production Bucket: `dolce-prod-assets`
-
-Repeat the same steps with bucket name `dolce-prod-assets`.
-
-#### Bucket Folder Structure
-
-Both buckets will have this structure (created automatically by CI/CD):
-
-```
-dolce-staging-assets/
-├── _next/
-│   └── static/        # Next.js build assets (JS/CSS chunks)
-├── static/            # Django collectstatic files
-└── media/             # Uploaded images/files
-```
+2. **Bucket name**: `dolce-staging-assets` (or `dolce-prod-assets`)
+3. **Region**: `ap-south-1` (Mumbai)
+4. **Block Public Access**: Keep **enabled**
+5. Click **Create bucket**
 
 ### 1.2 Create CloudFront Origin Access Control (OAC)
-
-This allows CloudFront to access private S3 buckets.
 
 1. Go to **CloudFront Console** → **Origin access** → **Origin access controls**
 2. Click **Create control setting**
 3. **Name**: `dolce-s3-oac`
-4. **Signing behavior**: Sign requests (recommended)
+4. **Signing behavior**: Sign requests
 5. **Origin type**: S3
 6. Click **Create**
 
-### 1.3 Create CloudFront Distribution (Staging)
+### 1.3 Request SSL Certificate (ACM)
 
-#### Step 1: Create Distribution
+**Important**: CloudFront requires certificates in **us-east-1** region.
+
+1. Go to **ACM Console** in **us-east-1** (N. Virginia)
+2. Click **Request certificate** → **Request a public certificate**
+3. **Domain names**:
+   - `kakshaonline.com`
+   - `*.kakshaonline.com`
+4. **Validation method**: DNS validation
+5. Add CNAME records to your DNS provider
+6. Wait for validation (5-30 minutes)
+
+Repeat for production: `dolcefiore.in`, `*.dolcefiore.in`
+
+### 1.4 Create CloudFront Distribution
+
+#### Step 1: Create with Lightsail Origin
 
 1. Go to **CloudFront Console** → **Create distribution**
+2. **Origin domain**: `YOUR_LIGHTSAIL_STATIC_IP`
+3. **Protocol**: HTTP only
+4. **HTTP port**: `3000`
+5. **Name**: `Lightsail-NextJS-3000`
 
-#### Step 2: Configure S3 Origin (First Origin)
+#### Step 2: Default Cache Behavior
 
+- **Viewer protocol policy**: Redirect HTTP to HTTPS
+- **Allowed HTTP methods**: GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
+- **Cache policy**: Create custom `Dolce-PublicPages-5min` (see below)
+- **Origin request policy**: AllViewerExceptHostHeader
+
+#### Step 3: Distribution Settings
+
+- **Alternate domain names (CNAMEs)**: `kakshaonline.com`, `www.kakshaonline.com`
+- **Custom SSL certificate**: Select your ACM certificate
+- **Default root object**: Leave empty
+
+#### Step 4: Add Additional Origins
+
+After creation, go to **Origins** tab and add:
+
+**S3 Origin (for media)**:
 - **Origin domain**: `dolce-staging-assets.s3.ap-south-1.amazonaws.com`
-- **Origin path**: Leave empty
-- **Name**: `S3-static-assets`
-- **Origin access**: Origin access control settings (recommended)
-  - Select the OAC: `dolce-s3-oac`
-- Click **Create distribution** (we'll add more origins after)
+- **Name**: `S3-media`
+- **Origin access**: Origin access control → Select `dolce-s3-oac`
 
-#### Step 3: Add Lightsail Origins
-
-After the distribution is created, go to **Origins** tab and add two more origins:
-
-**Origin 2: Next.js (Port 3000)**
-- **Origin domain**: `YOUR_LIGHTSAIL_STATIC_IP`
-- **Protocol**: HTTP only
-- **HTTP port**: `3000`
-- **Name**: `Lightsail-NextJS-3000`
-- **Origin Shield**: No
-
-**Origin 3: Django (Port 8000)**
+**Django Origin**:
 - **Origin domain**: `YOUR_LIGHTSAIL_STATIC_IP`
 - **Protocol**: HTTP only
 - **HTTP port**: `8000`
 - **Name**: `Lightsail-Django-8000`
-- **Origin Shield**: No
 
-#### Step 4: Configure Cache Behaviors
+#### Step 5: Create Cache Behaviors
 
-Go to **Behaviors** tab and create these behaviors (in order of priority):
+Go to **Behaviors** tab and create (in order):
 
-**Behavior 1: Next.js Static Assets (S3)**
-- **Path pattern**: `/_next/static/*`
-- **Origin**: `S3-static-assets`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Cache policy**: CachingOptimized
-- **Compress objects**: Yes
+| Path | Origin | Cache Policy | Origin Request Policy |
+|------|--------|--------------|----------------------|
+| `/media/*` | S3-media | CachingOptimized | CORS-S3Origin |
+| `/admin/*` | Lightsail-Django-8000 | CachingDisabled | AllViewer |
+| `/api/*` | Lightsail-Django-8000 | CachingDisabled | AllViewerExceptHostHeader |
+| `/orders/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/profile/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/cart` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/checkout/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/login` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/signup` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
 
-**Behavior 2: Django Static Assets (S3)**
-- **Path pattern**: `/static/*`
-- **Origin**: `S3-static-assets`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Cache policy**: CachingOptimized
-- **Compress objects**: Yes
-
-**Behavior 3: Media Files (S3)**
-- **Path pattern**: `/media/*`
-- **Origin**: `S3-static-assets`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Cache policy**: CachingOptimized
-- **Compress objects**: Yes
-
-**Behavior 4: Django Admin (No Cache)**
-- **Path pattern**: `/admin/*`
-- **Origin**: `Lightsail-Django-8000`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Allowed HTTP methods**: GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
-- **Cache policy**: CachingDisabled
-- **Origin request policy**: AllViewer
-
-**Behavior 5: Django API (No Cache)**
-- **Path pattern**: `/api/*`
-- **Origin**: `Lightsail-Django-8000`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Allowed HTTP methods**: GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
-- **Cache policy**: CachingDisabled
-- **Origin request policy**: AllViewerExceptHostHeader
-
-**Behavior 6-10: Authenticated SSR Pages (No Cache)**
-
-Create behaviors for each authenticated path:
-- `/orders/*`
-- `/profile/*`
-- `/cart`
-- `/checkout/*`
-- `/login`
-- `/signup`
-
-For each:
-- **Origin**: `Lightsail-NextJS-3000`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Allowed HTTP methods**: GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE
-- **Cache policy**: CachingDisabled
-- **Origin request policy**: AllViewer
-
-**Default Behavior (Public SSR Pages)**
-- **Path pattern**: Default (*)
-- **Origin**: `Lightsail-NextJS-3000`
-- **Viewer protocol policy**: Redirect HTTP to HTTPS
-- **Allowed HTTP methods**: GET, HEAD
-- **Cache policy**: Create custom (see below)
-- **Origin request policy**: AllViewerExceptHostHeader
-
-#### Step 5: Distribution Settings
-
-- **Price class**: Use only North America and Europe (cheaper) or All edge locations
-- **Alternate domain names (CNAMEs)**: `kakshaonline.com`, `www.kakshaonline.com`
-- **Custom SSL certificate**: Select your ACM certificate (see section 1.4)
-- **Default root object**: Leave empty
-- **Standard logging**: Optional
+**Default** (`*`) stays as Lightsail-NextJS-3000 with 5-min cache.
 
 #### Step 6: Update S3 Bucket Policy
 
-CloudFront will show a policy to add. Go to S3 → Bucket → Permissions → Bucket policy:
+Go to S3 → Bucket → Permissions → Bucket policy:
 
 ```json
 {
@@ -255,22 +192,7 @@ CloudFront will show a policy to add. Go to S3 → Bucket → Permissions → Bu
 }
 ```
 
-### 1.4 Request SSL Certificate (ACM)
-
-**Important**: CloudFront requires certificates in **us-east-1** region.
-
-1. Go to **ACM Console** in **us-east-1** (N. Virginia)
-2. Click **Request certificate** → **Request a public certificate**
-3. **Domain names**:
-   - `kakshaonline.com`
-   - `*.kakshaonline.com` (wildcard)
-4. **Validation method**: DNS validation
-5. Add the CNAME records to your DNS provider
-6. Wait for validation (5-30 minutes)
-
-Repeat for production: `dolcefiore.in`, `*.dolcefiore.in`
-
-### 1.5 Create Custom Cache Policy for Public Pages
+### 1.5 Create Custom Cache Policy
 
 1. Go to **CloudFront** → **Policies** → **Cache policies** → **Create**
 2. **Name**: `Dolce-PublicPages-5min`
@@ -284,50 +206,33 @@ Repeat for production: `dolcefiore.in`, `*.dolcefiore.in`
    - Cookies: None
 5. **Compression**: Enable Gzip and Brotli
 
-### 1.6 Create Production CloudFront Distribution
-
-Repeat steps 1.3-1.5 for production:
-- S3 bucket: `dolce-prod-assets`
-- Domains: `dolcefiore.in`, `www.dolcefiore.in`
-- ACM certificate for `dolcefiore.in`
-
 ---
 
 ## Part 2: Lightsail Setup
 
-### 2.1 Create Lightsail Instance (Staging)
+### 2.1 Create Instance
 
 1. Go to **Lightsail Console** → **Create instance**
-2. **Instance location**: Mumbai (ap-south-1)
+2. **Region**: Mumbai (ap-south-1)
 3. **Platform**: Linux/Unix
 4. **Blueprint**: Ubuntu 22.04 LTS
-5. **Instance plan**: $12/month (2 GB RAM, 1 vCPU, 60 GB SSD)
-6. **Instance name**: `dolce-staging`
-7. Click **Create instance**
+5. **Plan**: $12/month (2 GB RAM)
+6. **Name**: `dolce-staging`
 
 ### 2.2 Configure Networking
 
-1. Go to instance → **Networking** tab
-2. **Static IP**: Create and attach
-3. **Firewall rules**:
+1. **Static IP**: Create and attach
+2. **Firewall rules**:
 
-| Type | Port | Source | Purpose |
-|------|------|--------|---------|
-| SSH | 22 | Your IP only | Admin access |
-| Custom | 3000 | 0.0.0.0/0 | Next.js (CloudFront) |
-| Custom | 8000 | 0.0.0.0/0 | Django (CloudFront) |
+| Port | Source | Purpose |
+|------|--------|---------|
+| 22 | Your IP | SSH |
+| 3000 | 0.0.0.0/0 | Next.js |
+| 8000 | 0.0.0.0/0 | Django |
 
-**Security Note**: For production, restrict ports 3000/8000 to CloudFront IP ranges only. See [CloudFront IP ranges](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html).
+### 2.3 Install Docker
 
-### 2.3 Install Docker and Dependencies
-
-SSH into your instance:
-
-```bash
-ssh -i ~/.ssh/LightsailDefaultKey-ap-south-1.pem ubuntu@YOUR_STATIC_IP
-```
-
-Run setup:
+SSH into the instance and run:
 
 ```bash
 # Update system
@@ -355,14 +260,12 @@ docker --version
 docker compose version
 ```
 
-### 2.4 Clone Repository and Configure
+### 2.4 Clone and Configure
 
 ```bash
 # Clone repository
 git clone https://github.com/Sandip-Maurya/dolce.git ~/dolce
 cd ~/dolce
-
-# Checkout staging branch
 git checkout dev
 
 # Create environment file
@@ -370,13 +273,11 @@ cp .env.staging.example .env
 nano .env
 ```
 
-### 2.5 Configure Environment Variables
-
-Edit `.env` - key settings for CloudFront mode:
+Key `.env` settings:
 
 ```ini
 # Django
-SECRET_KEY=generate-secure-key
+SECRET_KEY=your-secret-key
 DJANGO_ENV=production
 DEBUG=False
 ALLOWED_HOSTS=kakshaonline.com,www.kakshaonline.com
@@ -394,275 +295,167 @@ CORS_ALLOWED_ORIGINS=https://kakshaonline.com,https://www.kakshaonline.com
 # CloudFront handles SSL
 SECURE_SSL_REDIRECT=False
 
-# S3 Storage
+# S3 for media uploads only
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=dolce-staging-assets
 AWS_S3_REGION_NAME=ap-south-1
 AWS_S3_CUSTOM_DOMAIN=YOUR_CLOUDFRONT_DOMAIN.cloudfront.net
 
-# CloudFront
-CLOUDFRONT_DOMAIN=YOUR_CLOUDFRONT_DOMAIN.cloudfront.net
-CLOUDFRONT_MODE=true
-
-# Domain (for reference, not used by Nginx since it's disabled)
+# Domain
 NGINX_DOMAIN=kakshaonline.com
 NGINX_DOMAIN_WWW=www.kakshaonline.com
-
-# Revalidation
-REVALIDATION_SECRET=secure-secret
-
-# Razorpay (test keys for staging)
-RAZORPAY_KEY_ID=test_key
-RAZORPAY_KEY_SECRET=test_secret
 ```
 
-### 2.6 Deploy Application
+### 2.5 Deploy
 
 ```bash
 cd ~/dolce
 
-# Pull images from GHCR
+# Pull images
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull
 
-# Start services (no nginx!)
+# Start services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d
 
-# Check status - should show db, backend, frontend-next (NO nginx)
+# Verify
 docker compose ps
-
-# View logs
-docker compose logs -f
-```
-
-### 2.7 Verify Services
-
-```bash
-# Test Next.js directly
 curl http://localhost:3000/
-
-# Test Django directly  
-curl http://localhost:8000/api/health/
 curl http://localhost:8000/admin/ -I
 ```
 
-### 2.8 Configure DNS
+### 2.6 Configure DNS
 
-Point your domain to CloudFront (NOT to Lightsail directly):
+Point domain to CloudFront (NOT Lightsail):
 
 | Record | Type | Value |
 |--------|------|-------|
 | `kakshaonline.com` | ALIAS/CNAME | `d1234xxx.cloudfront.net` |
 | `www.kakshaonline.com` | CNAME | `d1234xxx.cloudfront.net` |
 
-### 2.9 Create Production Instance
-
-Repeat steps 2.1-2.8 for production:
-- Instance name: `dolce-prod`
-- Branch: `prod`
-- Domain: `dolcefiore.in`
-- S3 bucket: `dolce-prod-assets`
-- Use `docker-compose.ghcr-prod.yml` instead of `docker-compose.ghcr.yml`
-
 ---
 
-## Part 3: GitHub Actions CI/CD
+## Part 3: CI/CD Pipeline
 
-### 3.1 Workflow Overview
+### 3.1 How It Works
 
-The workflow (`.github/workflows/ghcr-images.yml`) automatically:
-1. Builds Docker images → GHCR
-2. Extracts Next.js static files → S3
-3. Invalidates CloudFront cache
-
-### 3.2 GitHub Secrets Required
-
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | IAM user key | `AKIA...` |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret | `wJal...` |
-| `AWS_REGION` | AWS region | `ap-south-1` |
-| `S3_BUCKET_STAGING` | Staging bucket | `dolce-staging-assets` |
-| `S3_BUCKET_PROD` | Prod bucket | `dolce-prod-assets` |
-| `CLOUDFRONT_DISTRIBUTION_STAGING` | Staging dist ID | `E1234...` |
-| `CLOUDFRONT_DISTRIBUTION_PROD` | Prod dist ID | `E5678...` |
-
-### 3.3 IAM Policy for GitHub Actions
-
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "S3Access",
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject",
-                "s3:ListBucket"
-            ],
-            "Resource": [
-                "arn:aws:s3:::dolce-staging-assets",
-                "arn:aws:s3:::dolce-staging-assets/*",
-                "arn:aws:s3:::dolce-prod-assets",
-                "arn:aws:s3:::dolce-prod-assets/*"
-            ]
-        },
-        {
-            "Sid": "CloudFrontInvalidation",
-            "Effect": "Allow",
-            "Action": [
-                "cloudfront:CreateInvalidation"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
+```
+Developer pushes to dev/prod branch
+         │
+         ▼
+GitHub Actions (automatic)
+  └── Build Docker images
+  └── Push to GHCR (ghcr.io/sandip-maurya/dolce-*)
+         │
+         ▼
+SSH to Lightsail (manual)
+  └── docker compose pull
+  └── docker compose up -d
+         │
+         ▼
+Live on CloudFront!
 ```
 
----
+### 3.2 No AWS Secrets Required
 
-## Part 4: Deployment Workflow
+The simplified workflow only needs `GITHUB_TOKEN` (automatic).
 
-### 4.1 Staging Deployment
+**What happens:**
+- ✅ Docker images built and pushed to GHCR
+- ✅ Next.js static files included in Docker image
+- ✅ Django uploads media to S3 using `.env` credentials on Lightsail
 
+### 3.3 Deployment Commands
+
+**Staging:**
 ```bash
-# On staging Lightsail
-cd ~/dolce
-git pull origin dev
-
+cd ~/dolce && git pull origin dev
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d
 ```
 
-Or use the script:
+**Production:**
 ```bash
-./scripts/deploy-cloudfront-staging.sh
-```
-
-### 4.2 Production Deployment
-
-```bash
-# On production Lightsail
-cd ~/dolce
-git pull origin prod
-
+cd ~/dolce && git pull origin prod
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml up -d
 ```
 
-Or use the script:
+Or use the scripts:
 ```bash
+./scripts/deploy-cloudfront-staging.sh
 ./scripts/deploy-cloudfront-prod.sh
 ```
 
 ---
 
-## Part 5: Maintenance
+## Part 4: Maintenance
 
-### 5.1 Viewing Logs
+### View Logs
 
 ```bash
-# All services
 docker compose logs -f
-
-# Specific service
 docker compose logs -f backend
 docker compose logs -f frontend-next
-docker compose logs -f db
 ```
 
-### 5.2 Database Operations
+### Database Backup
 
 ```bash
-# Backup
 docker compose exec db pg_dump -U dolce_user dolce_db > backup_$(date +%Y%m%d).sql
-
-# Restore
-cat backup.sql | docker compose exec -T db psql -U dolce_user dolce_db
-
-# Django shell
-docker compose exec backend python manage.py shell
 ```
 
-### 5.3 CloudFront Cache Invalidation
+### Django Commands
 
 ```bash
-# Invalidate everything
-aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
-
-# Invalidate specific paths
-aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/products/*"
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py createsuperuser
+docker compose exec backend python manage.py collectstatic --noinput
 ```
 
-### 5.4 Resource Monitoring
+### Resource Monitoring
 
 ```bash
-# Container stats
 docker stats
-
-# Disk usage
-df -h
-
-# Memory
 free -m
+df -h
 ```
 
 ---
 
-## Part 6: Troubleshooting
+## Part 5: Troubleshooting
 
-### 6.1 CloudFront Returns 502/504
+### CloudFront 502/504
 
-**Check services are running:**
 ```bash
+# Check services running
 docker compose ps
-# Should show: db, backend, frontend-next (all "Up")
-```
 
-**Check ports are accessible:**
-```bash
+# Test locally
 curl http://localhost:3000/
 curl http://localhost:8000/admin/ -I
+
+# Check Lightsail firewall allows 3000, 8000
 ```
 
-**Check Lightsail firewall** allows ports 3000 and 8000.
+### Media Files Not Loading
 
-### 6.2 Static Assets Not Loading
+- Check S3 bucket policy has CloudFront OAC access
+- Check `USE_S3=True` in `.env`
+- Check `AWS_S3_CUSTOM_DOMAIN` points to CloudFront
 
-**Check S3 bucket policy** includes CloudFront OAC.
+### Admin CSRF Issues
 
-**Check assets exist:**
-```bash
-aws s3 ls s3://dolce-staging-assets/_next/static/
-```
-
-### 6.3 API CORS Errors
-
-**Check CORS_ALLOWED_ORIGINS** in `.env` includes your domain with `https://`.
-
-**Check CloudFront behavior** for `/api/*` uses `AllViewerExceptHostHeader` origin request policy.
-
-### 6.4 Admin Panel Issues
-
-**Check Django ALLOWED_HOSTS** includes your domain.
-
-**Check CSRF settings** - Django needs to trust CloudFront's forwarded headers:
+Add to Django settings:
 ```python
 CSRF_TRUSTED_ORIGINS = ['https://kakshaonline.com', 'https://www.kakshaonline.com']
 ```
 
-### 6.5 Container Memory Issues
+### Container Memory Issues
 
 ```bash
-# Check if OOM killed
-docker compose logs | grep -i "killed\|oom"
-
-# Check current usage
 docker stats --no-stream
+docker compose logs | grep -i "killed\|oom"
 ```
-
-If memory issues persist, consider upgrading to 4GB Lightsail ($24/mo).
 
 ---
 
@@ -674,23 +467,21 @@ If memory issues persist, consider upgrading to 4GB Lightsail ($24/mo).
 # Staging
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml [command]
 
-# Production  
+# Production
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml [command]
 ```
 
 ### URLs
 
-| Environment | URL |
-|-------------|-----|
-| Staging | https://kakshaonline.com |
-| Staging Admin | https://kakshaonline.com/admin |
-| Production | https://dolcefiore.in |
-| Production Admin | https://dolcefiore.in/admin |
+| Environment | Site | Admin |
+|-------------|------|-------|
+| Staging | https://kakshaonline.com | https://kakshaonline.com/admin |
+| Production | https://dolcefiore.in | https://dolcefiore.in/admin |
 
-### Services (No Nginx)
+### Services
 
-| Service | Internal Port | External Port | Purpose |
-|---------|--------------|---------------|---------|
-| db | 5432 | - | PostgreSQL |
-| backend | 8000 | 8000 | Django API + Admin |
-| frontend-next | 3000 | 3000 | Next.js SSR |
+| Service | Port | Purpose |
+|---------|------|---------|
+| db | 5432 | PostgreSQL |
+| backend | 8000 | Django API + Admin |
+| frontend-next | 3000 | Next.js SSR + Static |
