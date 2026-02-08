@@ -49,12 +49,14 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Static + media files
 #
-# If USE_S3=True, S3 storage + URLs are configured in base settings via django-storages.
-# In that case, do NOT override STATIC_URL / MEDIA_URL here.
-if not globals().get('USE_S3', False):
-    STATIC_ROOT = BASE_DIR / 'staticfiles'
-    STATIC_URL = '/static/'
+# Static files are ALWAYS served locally (not from S3).
+# Media files use S3 when USE_S3=True (configured in base.py).
+# This ensures collectstatic works without S3 permissions.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
 
+# Media is local only when USE_S3=False
+if not globals().get('USE_S3', False):
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL = '/media/'
 
