@@ -1,4 +1,6 @@
-# Base Docker Compose configuration
+# Staging (kakshaonline.com). CloudFront terminates SSL; Nginx HTTP internal routing only.
+# Usage: docker compose -f docker-compose.stg.yml pull && docker compose -f docker-compose.stg.yml up -d
+
 services:
   db:
     image: postgres:16-alpine
@@ -17,24 +19,43 @@ services:
       retries: 5
     networks:
       - dolce_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c max_connections=50
+      -c effective_cache_size=256MB
 
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/sandip-maurya/dolce-backend:stg
     container_name: dolce_backend
     env_file:
       - .env
     environment:
-      - DJANGO_ENV=${DJANGO_ENV:-production}
+      - DJANGO_ENV=production
+      - DEBUG=False
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-dolce_db}
       - DB_USER=${DB_USER:-dolce_user}
       - DB_PASSWORD=${DB_PASSWORD:-changeme}
-      # Frontend revalidation
       - FRONTEND_URL=http://frontend-next:3000
       - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+      - SECURE_SSL_REDIRECT=False
+      - USE_X_FORWARDED_HOST=True
+      - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+      - USE_S3=${USE_S3:-False}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-}
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-us-east-1}
     volumes:
       - ./backend/media:/app/media
       - ./backend/staticfiles:/app/staticfiles
@@ -45,7 +66,13 @@ services:
     networks:
       - dolce_network
     restart: unless-stopped
-    # Default command - will be overridden by dev/prod compose files
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+          cpus: '0.6'
+        reservations:
+          memory: 320M
     command: >
       sh -c "
         echo 'Waiting for database to be ready...' &&
@@ -55,59 +82,41 @@ services:
         mkdir -p /app/staticfiles &&
         python manage.py collectstatic --noinput &&
         echo 'Static files collected successfully' &&
-        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile - config.wsgi:application
+        gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 180 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 50 --access-logfile - --error-logfile - config.wsgi:application
       "
 
   frontend-next:
-    build:
-      context: ./frontend-next
-      dockerfile: Dockerfile
-      args:
-        - BACKEND_URL=http://backend:8000
+    image: ghcr.io/sandip-maurya/dolce-frontend-next:stg
     container_name: dolce_frontend_next
-    ports:
-      - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000/api
       - BACKEND_URL=http://backend:8000
-      # On-demand revalidation secret (must match backend)
       - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+      - TRUST_PROXY=true
     networks:
       - dolce_network
     depends_on:
       - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.75'
+        reservations:
+          memory: 384M
 
   nginx:
     image: nginx:alpine
     container_name: dolce_nginx
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      # Mount templates (will be processed by init script)
-      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
-      - ./nginx/nginx.dev-https.conf.template:/etc/nginx/nginx.dev-https.conf.template:ro
-      # Mount final config (will be generated from template)
-      # - ./nginx/nginx.conf:/etc/nginx/nginx.conf:rw
+      - ./nginx/nginx.origin.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./backend/staticfiles:/static:ro
       - ./backend/media:/media:ro
-      # Mount SSL certificates from local directory (copied from Let's Encrypt)
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      # Mount Certbot SSL configuration files to separate location (if they exist)
-      - /etc/letsencrypt/options-ssl-nginx.conf:/etc/nginx/ssl-config/options-ssl-nginx.conf:ro
-      - /etc/letsencrypt/ssl-dhparams.pem:/etc/nginx/ssl-config/ssl-dhparams.pem:ro
-      # Mount init scripts
-      - ./scripts/init-nginx.sh:/scripts/init-nginx.sh:ro
-      - ./scripts/nginx-entrypoint.sh:/scripts/nginx-entrypoint.sh:ro
-    # nginx:alpine does not include `envsubst` by default; our init script uses it.
-    # Install gettext (provides envsubst) before running the entrypoint.
-    entrypoint: ["/bin/sh", "-c", "apk add --no-cache gettext >/dev/null && /bin/sh /scripts/nginx-entrypoint.sh"]
-    environment:
-      - NGINX_DOMAIN=${NGINX_DOMAIN:-}
-      - NGINX_DOMAIN_WWW=${NGINX_DOMAIN_WWW:-}
-      - NGINX_SSL_CERT_PATH=${NGINX_SSL_CERT_PATH:-/etc/nginx/ssl/fullchain.pem}
-      - NGINX_SSL_KEY_PATH=${NGINX_SSL_KEY_PATH:-/etc/nginx/ssl/privkey.pem}
+    entrypoint: ["nginx", "-g", "daemon off;"]
     depends_on:
       - backend
       - frontend-next
@@ -121,4 +130,3 @@ volumes:
 networks:
   dolce_network:
     driver: bridge
-

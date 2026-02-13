@@ -16,12 +16,12 @@ fixtures/
 
 ### Exporting Data from Local Environment (Docker)
 
-**Note:** If running with Docker Compose, use `docker-compose exec backend` prefix.
+**Note:** If running with Docker Compose, use `docker compose -f docker-compose.dev.yml exec backend` prefix.
 
 Export all content data:
 ```bash
 # With Docker Compose
-docker-compose exec backend python manage.py export_content_data --output fixtures/content/latest.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output fixtures/content/latest.json
 
 # Without Docker (direct Python)
 python manage.py export_content_data --output fixtures/content/latest.json
@@ -29,12 +29,12 @@ python manage.py export_content_data --output fixtures/content/latest.json
 
 Export only products:
 ```bash
-docker-compose exec backend python manage.py export_content_data --output fixtures/content/products.json --only-products
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output fixtures/content/products.json --only-products
 ```
 
 Export only content (blogs, testimonials):
 ```bash
-docker-compose exec backend python manage.py export_content_data --output fixtures/content/content.json --only-content
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output fixtures/content/content.json --only-content
 ```
 
 ### Importing Data to Dev/Prod Environment (Docker)
@@ -42,7 +42,7 @@ docker-compose exec backend python manage.py export_content_data --output fixtur
 Import all data:
 ```bash
 # With Docker Compose
-docker-compose exec backend python manage.py import_content_data --input fixtures/content/latest.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input fixtures/content/latest.json
 
 # Without Docker (direct Python)
 python manage.py import_content_data --input fixtures/content/latest.json
@@ -50,18 +50,18 @@ python manage.py import_content_data --input fixtures/content/latest.json
 
 Import with clearing existing data (⚠️ WARNING: Deletes all existing data):
 ```bash
-docker-compose exec backend python manage.py import_content_data --input fixtures/content/latest.json --clear-existing
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input fixtures/content/latest.json --clear-existing
 ```
 
 Import only products:
 ```bash
-docker-compose exec backend python manage.py import_content_data --input fixtures/content/products.json --only-products
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input fixtures/content/products.json --only-products
 ```
 
 **Important:** When using Docker Compose:
 - File paths are relative to `/app` inside the container (which maps to `./backend` on host)
 - Files created in the container are accessible on the host (and vice versa) due to volume mounts
-- Use `docker-compose exec backend` to run management commands
+- Use `docker compose -f docker-compose.dev.yml exec backend` to run management commands
 
 ## Recommended Workflow
 
@@ -70,23 +70,23 @@ docker-compose exec backend python manage.py import_content_data --input fixture
 1. **Export from local (Docker):**
    ```bash
    # Using export command
-   docker-compose exec backend python manage.py export_content_data --output fixtures/initial/categories_tags.json --only-products --exclude-products
+   docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output fixtures/initial/categories_tags.json --only-products --exclude-products
    
    # Or using Django dumpdata
-   docker-compose exec backend python manage.py dumpdata products.Category products.Tag --indent 2 --output fixtures/initial/categories_tags.json
+   docker compose -f docker-compose.dev.yml exec backend python manage.py dumpdata products.Category products.Tag --indent 2 --output fixtures/initial/categories_tags.json
    ```
 
 2. **Commit to git:**
    ```bash
    git add backend/fixtures/initial/categories_tags.json
    git commit -m "Add initial categories and tags"
-   git push origin dev  # or prod
+   git push origin stg  # or prod
    ```
 
 3. **On server, pull and load:**
    ```bash
-   git pull origin dev
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec backend python manage.py loaddata fixtures/initial/categories_tags.json
+   git pull origin stg
+   docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata fixtures/initial/categories_tags.json
    ```
 
 ### For Large/Dynamic Data (Products, Blogs, Testimonials)
@@ -95,7 +95,7 @@ docker-compose exec backend python manage.py import_content_data --input fixture
 
 1. **Export from local (Docker):**
    ```bash
-   docker-compose exec backend python manage.py export_content_data --output content_data_export.json
+   docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content_data_export.json
    ```
    The file will be created in `./backend/content_data_export.json` on your host machine.
 
@@ -110,14 +110,14 @@ docker-compose exec backend python manage.py import_content_data --input fixture
 
 3. **On server, import:**
    ```bash
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec backend python manage.py import_content_data --input content_data_export.json
+   docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input content_data_export.json
    ```
 
 **Option B: Git (Only if files are < 1MB)**
 
 1. **Export to fixtures directory (Docker):**
    ```bash
-   docker-compose exec backend python manage.py export_content_data --output fixtures/content/latest.json
+   docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output fixtures/content/latest.json
    ```
    The file will be in `./backend/fixtures/content/latest.json` on your host.
 
@@ -131,13 +131,13 @@ docker-compose exec backend python manage.py import_content_data --input fixture
    ```bash
    git add backend/fixtures/content/latest.json
    git commit -m "Update content data"
-   git push origin dev
+   git push origin stg
    ```
 
 4. **On server, pull and import:**
    ```bash
-   git pull origin dev
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec backend python manage.py import_content_data --input fixtures/content/latest.json
+   git pull origin stg
+   docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input fixtures/content/latest.json
    ```
 
 ## Management Commands Reference
@@ -156,13 +156,13 @@ Export content data to JSON file.
 **Examples:**
 ```bash
 # Export everything (with Docker)
-docker-compose exec backend python manage.py export_content_data --output data/export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output data/export.json
 
 # Export only products
-docker-compose exec backend python manage.py export_content_data --output products.json --only-products
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output products.json --only-products
 
 # Export only blogs and testimonials
-docker-compose exec backend python manage.py export_content_data --output content.json --only-content
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content.json --only-content
 ```
 
 ### import_content_data
@@ -180,13 +180,13 @@ Import content data from JSON file.
 **Examples:**
 ```bash
 # Import everything (with Docker)
-docker-compose exec backend python manage.py import_content_data --input data/export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input data/export.json
 
 # Import with clearing existing data
-docker-compose exec backend python manage.py import_content_data --input data/export.json --clear-existing
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input data/export.json --clear-existing
 
 # Import only products
-docker-compose exec backend python manage.py import_content_data --input products.json --only-products
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input products.json --only-products
 ```
 
 ## What Gets Exported/Imported
@@ -220,14 +220,14 @@ When using Docker Compose, keep these points in mind:
 
 2. **Command Format:**
    ```bash
-   # Always use docker-compose exec backend prefix
-   docker-compose exec backend python manage.py <command>
+   # Always use docker compose -f docker-compose.dev.yml exec backend prefix
+   docker compose -f docker-compose.dev.yml exec backend python manage.py <command>
    
    # For dev environment
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec backend python manage.py <command>
+   docker compose -f docker-compose.dev.yml exec backend python manage.py <command>
    
    # For prod environment
-   docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec backend python manage.py <command>
+   docker compose -f docker-compose.prod.yml exec backend python manage.py <command>
    ```
 
 3. **File Paths:**
@@ -244,7 +244,7 @@ When using Docker Compose, keep these points in mind:
 1. **Always backup before importing:**
    ```bash
    # Backup database (with Docker)
-   docker-compose exec db pg_dump -U dolce_user dolce_db | gzip > backup.sql.gz
+   docker compose -f docker-compose.dev.yml exec db pg_dump -U dolce_user dolce_db | gzip > backup.sql.gz
    
    # Or use the backup script
    ./scripts/backup-db.sh

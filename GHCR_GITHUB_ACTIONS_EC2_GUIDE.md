@@ -6,9 +6,9 @@ This guide explains how to deploy Dolce Fiore to EC2 using pre-built Docker imag
 
 Instead of building Docker images on your EC2 instance (which can be slow or fail due to limited resources), this approach:
 
-1. **Builds images in GitHub Actions** when you push to the `dev` branch
-2. **Pushes images to GHCR** (public registry, no auth needed on EC2)
-3. **Pulls and runs images on EC2** using `docker compose pull`
+1. **Builds images in GitHub Actions** when you push to the `stg` or `prod` branch
+2. **Pushes images to GHCR** (tags `:stg` and `:prod`; no auth needed on instance)
+3. **On Lightsail/EC2**: `docker compose -f docker-compose.stg.yml pull && up -d` (or `docker-compose.prod.yml`)
 
 This solves the "Next.js build hangs on EC2" problem and makes deployments faster and more reliable.
 
@@ -37,16 +37,16 @@ This solves the "Next.js build hangs on EC2" problem and makes deployments faste
 
 Images are built and tagged as:
 
-- **Backend**: `ghcr.io/sandip-maurya/dolce-backend:dev` and `ghcr.io/sandip-maurya/dolce-backend:sha-<COMMIT_SHA>`
-- **Frontend**: `ghcr.io/sandip-maurya/dolce-frontend-next:dev` and `ghcr.io/sandip-maurya/dolce-frontend-next:sha-<COMMIT_SHA>`
+- **Backend**: `ghcr.io/sandip-maurya/dolce-backend:stg`, `:prod`, and `:sha-<COMMIT_SHA>`
+- **Frontend**: `ghcr.io/sandip-maurya/dolce-frontend-next:stg`, `:prod`, and `:sha-<COMMIT_SHA>`
 
-The `:dev` tag always points to the latest build from the `dev` branch. The `:sha-<COMMIT_SHA>` tags allow you to pin to a specific commit for rollbacks.
+The `:stg` tag is built from the `stg` branch; `:prod` from the `prod` branch. Use a single compose file per env: `docker-compose.stg.yml` or `docker-compose.prod.yml`.
 
 ### Workflow Trigger
 
 The GitHub Actions workflow (`.github/workflows/ghcr-images.yml`) triggers on:
 
-- **Push to `dev` branch** (when backend/frontend code changes)
+- **Push to `stg` or `prod`** (when backend/frontend or compose files change)
 - **Manual trigger** via GitHub Actions UI (`workflow_dispatch`)
 
 ---
@@ -59,25 +59,15 @@ Ensure `.github/workflows/ghcr-images.yml` exists in your repository. It should:
 
 - Build both backend and frontend images
 - Push to `ghcr.io/sandip-maurya/dolce-backend` and `ghcr.io/sandip-maurya/dolce-frontend-next`
-- Tag with `:dev` and `:sha-<COMMIT_SHA>`
+- Tag with `:stg` (from stg branch) or `:prod` (from prod branch) and `:sha-<COMMIT_SHA>`
 
 ### 2. Trigger First Build
 
-Push a commit to the `dev` branch (or manually trigger the workflow):
-
-```bash
-git push origin dev
-```
-
-Check the Actions tab in GitHub to verify the build completes successfully.
+Push a commit to the `stg` branch (or `prod`), or manually trigger the workflow. Check the Actions tab to verify the build completes.
 
 ### 3. Verify Images on GHCR
 
-Visit:
-- https://github.com/Sandip-Maurya/dolce/pkgs/container/dolce-backend
-- https://github.com/Sandip-Maurya/dolce/pkgs/container/dolce-frontend-next
-
-You should see the `dev` tag and a `sha-<COMMIT_SHA>` tag.
+Visit the package pages; you should see `stg` and `prod` tags (and `sha-<COMMIT_SHA>`).
 
 ---
 
@@ -89,7 +79,7 @@ You should see the `dev` tag and a `sha-<COMMIT_SHA>` tag.
 
 ```bash
 cd ~/dolce  # or wherever you keep the repo
-git pull origin dev
+git pull origin stg
 ```
 
 2. **Ensure `.env` file exists** (set values based on your environment):
@@ -120,22 +110,20 @@ Environment selection:
 Use:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.stg.yml pull
+docker compose -f docker-compose.stg.yml up -d
 ```
 
 Important:
-- **Do not include** `docker-compose.dev.yml` in the same command.
-  - `docker-compose.dev.yml` mounts `/etc/nginx/nginx.conf` read-only (local dev convenience)
-  - `docker-compose.dev-https.yml` generates `/etc/nginx/nginx.conf` from a template (needs write access)
+- Use a single compose file: `docker-compose.stg.yml` or `docker-compose.prod.yml` (no stacking).
 
 #### Option B: Production on EC2 with HTTPS (recommended for real production)
 
 Use this instead:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 5. **Verify deployment**:
@@ -162,7 +150,7 @@ curl https://yourdomain.com/health
 ```bash
 git add .
 git commit -m "Your changes"
-git push origin dev
+git push origin stg
 ```
 
 2. **Wait for GitHub Actions to complete** (check Actions tab, usually 5-10 minutes)
@@ -171,15 +159,15 @@ git push origin dev
 
 ```bash
 cd ~/dolce
-git pull origin dev
+git pull origin stg
 
 # Dev/staging on EC2 with HTTPS
-docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.dev-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.stg.yml pull
+docker compose -f docker-compose.stg.yml up -d
 
 # Production on EC2 with HTTPS
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+# docker compose -f docker-compose.prod.yml pull
+# docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Quick Update Script
@@ -190,9 +178,9 @@ Create `scripts/deploy-ghcr.sh` on EC2:
 #!/bin/bash
 set -e
 cd ~/dolce
-git pull origin dev
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+git pull origin stg
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 echo "Deployment complete!"
 ```
 
@@ -213,7 +201,7 @@ If a deployment has issues, you can rollback to a previous image using the SHA t
 
 1. **Find the previous working commit SHA** (from GitHub Actions history or git log)
 
-2. **Edit `docker-compose.ghcr.yml`** temporarily:
+2. **For staging**, use `docker-compose.stg.yml` (images tagged `:stg`). For production, use `docker-compose.prod.yml` (images tagged `:prod`). No separate ghcr override file.
 
 ```yaml
 services:
@@ -229,8 +217,8 @@ services:
 3. **Pull and restart**:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 4. **Revert the compose file** after fixing the issue.
@@ -240,7 +228,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 ```bash
 # On your local machine or in GitHub
 git revert <BAD_COMMIT_SHA>
-git push origin dev
+git push origin stg
 # Wait for Actions to rebuild, then pull on EC2
 ```
 
@@ -254,8 +242,7 @@ git push origin dev
 
 **Solutions**:
 - Check GitHub Actions completed successfully (Actions tab)
-- Verify image names match in `docker-compose.ghcr.yml` and `.github/workflows/ghcr-images.yml`
-- Ensure you're using the correct branch tag (`:dev` for dev branch builds)
+- Verify image names in `docker-compose.stg.yml` / `docker-compose.prod.yml` match `.github/workflows/ghcr-images.yml` (tags `:stg` and `:prod`)
 - Wait a few minutes after Actions completes (GHCR propagation delay)
 
 ### Compose Still Trying to Build
@@ -263,8 +250,7 @@ git push origin dev
 **Problem**: `docker compose up` still builds images locally
 
 **Solutions**:
-- Ensure `docker-compose.ghcr.yml` is included in your compose command
-- Verify `build: null` is set in `docker-compose.ghcr.yml`
+- Use a single file: `docker compose -f docker-compose.stg.yml` or `-f docker-compose.prod.yml`. Stg/prod compose files use GHCR images (no local build).
 - Check that `image:` is set (not just `build:` removed)
 
 ### Backend Environment Variables Missing
@@ -274,7 +260,7 @@ git push origin dev
 **Solutions**:
 - Verify `.env` file exists on EC2 and contains all required variables
 - Check `.env` file permissions: `chmod 600 .env`
-- Ensure `env_file: - .env` is in `docker-compose.yml` (it should be)
+- Ensure `env_file: - .env` is in your compose file (docker-compose.stg.yml / docker-compose.prod.yml)
 - Restart containers after updating `.env`: `docker compose restart backend`
 
 ### Next.js Can't Connect to Backend
@@ -282,7 +268,7 @@ git push origin dev
 **Problem**: Frontend shows API errors or 502
 
 **Solutions**:
-- Verify `BACKEND_URL=http://backend:8000` in `docker-compose.ghcr.yml` (should match network service name)
+- Verify `BACKEND_URL=http://backend:8000` in the frontend service in docker-compose.stg.yml / docker-compose.prod.yml
 - Check backend container is running: `docker compose ps backend`
 - Check backend logs: `docker compose logs backend`
 - Verify network connectivity: `docker compose exec frontend-next ping backend`

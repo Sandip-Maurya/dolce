@@ -1,38 +1,12 @@
 # CloudFront + Lightsail Deployment Guide
 
-This guide deploys **Dolce Fiore** using **AWS CloudFront** as the entry point with **Lightsail** for compute and **S3** for media files.
+This guide deploys **Dolce Fiore** with **CloudFront** terminating SSL and **Lightsail** for the app. **Nginx on Lightsail** listens on port 80 (HTTP) and routes internally to Django and Next.js; CloudFront forwards HTTPS traffic to Lightsail:80. **S3** is used for media; CloudFront behavior for `/media/*` points to S3.
 
 ## Architecture Overview
 
-```
-                                    ┌─────────────────────────────────────┐
-                                    │           CloudFront                │
-                                    │    (CDN + SSL Termination)          │
-                                    └──────────────┬──────────────────────┘
-                                                   │
-                          ┌────────────────────────┼────────────────────────┐
-                          │                        │                        │
-                          ▼                        ▼                        ▼
-             ┌────────────────────┐   ┌─────────────────────────┐
-             │   S3 Bucket        │   │   Lightsail Instance    │
-             │   (Media Only)     │   │       (2GB RAM)         │
-             │                    │   │                         │
-             │ • /media/*         │   │  ┌─────────────────┐   │
-             │   (user uploads)   │   │  │   PostgreSQL    │   │
-             │                    │   │  │   :5432         │   │
-             └────────────────────┘   │  └─────────────────┘   │
-                                      │  ┌─────────────────┐   │
-                                      │  │   Django API    │   │
-                                      │  │   :8000 ←───────────── /admin/*, /api/*
-                                      │  └─────────────────┘   │
-                                      │  ┌─────────────────┐   │
-                                      │  │   Next.js SSR   │   │
-                                      │  │   :3000 ←───────────── /* (including /_next/static/*)
-                                      │  └─────────────────┘   │
-                                      └─────────────────────────┘
-
-Simplified: Next.js serves its own static files. S3 only for media uploads.
-```
+- **CloudFront**: SSL termination; origin for the app = **Lightsail:80** (Nginx). Origin for `/media/*` = S3.
+- **Lightsail**: Nginx on port 80 (HTTP only); Nginx routes `/api/`, `/admin/` to backend:8000 and everything else to frontend-next:3000. No SSL on the instance.
+- **Compose**: One file per env. Staging: `docker compose -f docker-compose.stg.yml`. Production: `docker compose -f docker-compose.prod.yml`.
 
 ## Key Design Decisions
 
@@ -45,7 +19,7 @@ Simplified: Next.js serves its own static files. S3 only for media uploads.
 
 | Environment | Domain | CloudFront | S3 Bucket | Lightsail | Branch |
 |-------------|--------|------------|-----------|-----------|--------|
-| **Staging** | kakshaonline.com | dist-staging | dolce-staging-assets | dolce-staging | `dev` |
+| **Staging** | kakshaonline.com | dist-staging | dolce-staging-assets | dolce-staging | `stg` |
 | **Production** | dolcefiore.in | dist-prod | dolce-prod-assets | dolce-prod | `prod` |
 
 ## Request Routing (CloudFront Behaviors)
@@ -53,15 +27,15 @@ Simplified: Next.js serves its own static files. S3 only for media uploads.
 | Priority | Path Pattern | Origin | Cache | Notes |
 |----------|--------------|--------|-------|-------|
 | 1 | `/media/*` | S3 | 1 week | User uploads |
-| 2 | `/admin/*` | Lightsail:8000 | Disabled | Django admin |
-| 3 | `/api/*` | Lightsail:8000 | Disabled | REST API |
-| 4 | `/orders/*` | Lightsail:3000 | Disabled | Authenticated |
-| 5 | `/profile/*` | Lightsail:3000 | Disabled | Authenticated |
-| 6 | `/cart` | Lightsail:3000 | Disabled | Authenticated |
-| 7 | `/checkout/*` | Lightsail:3000 | Disabled | Authenticated |
-| 8 | `/login` | Lightsail:3000 | Disabled | Auth page |
-| 9 | `/signup` | Lightsail:3000 | Disabled | Auth page |
-| Default | `*` | Lightsail:3000 | 5 min | SSR + static |
+| 2 | `/admin/*` | Lightsail:80 (Nginx) | Disabled | Django admin |
+| 3 | `/api/*` | Lightsail:80 (Nginx) | Disabled | REST API |
+| 4 | `/orders/*` | Lightsail:80 (Nginx) | Disabled | Authenticated |
+| 5 | `/profile/*` | Lightsail:80 (Nginx) | Disabled | Authenticated |
+| 6 | `/cart` | Lightsail:80 (Nginx) | Disabled | Authenticated |
+| 7 | `/checkout/*` | Lightsail:80 (Nginx) | Disabled | Authenticated |
+| 8 | `/login` | Lightsail:80 (Nginx) | Disabled | Auth page |
+| 9 | `/signup` | Lightsail:80 (Nginx) | Disabled | Auth page |
+| Default | `*` | Lightsail:80 (Nginx) | 5 min | SSR + static |
 
 **Note**: `/_next/static/*` goes to Lightsail:3000 (default behavior). CloudFront caches these files at the edge with long TTL because they have unique hashed filenames.
 
@@ -227,8 +201,7 @@ Go to S3 → Bucket → Permissions → Bucket policy:
 | Port | Source | Purpose |
 |------|--------|---------|
 | 22 | Your IP | SSH |
-| 3000 | 0.0.0.0/0 | Next.js |
-| 8000 | 0.0.0.0/0 | Django |
+| 80 | 0.0.0.0/0 | Nginx (CloudFront origin) |
 
 ### 2.3 Install Docker
 
@@ -312,10 +285,10 @@ NGINX_DOMAIN_WWW=www.kakshaonline.com
 cd ~/dolce
 
 # Pull images
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.stg.yml pull
 
 # Start services
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.stg.yml up -d
 
 # Verify
 docker compose ps
@@ -368,16 +341,16 @@ The simplified workflow only needs `GITHUB_TOKEN` (automatic).
 
 **Staging:**
 ```bash
-cd ~/dolce && git pull origin dev
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d
+cd ~/dolce && git pull origin stg
+docker compose -f docker-compose.stg.yml pull
+docker compose -f docker-compose.stg.yml up -d
 ```
 
 **Production:**
 ```bash
 cd ~/dolce && git pull origin prod
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 Or use the scripts:
@@ -434,7 +407,7 @@ docker compose ps
 curl http://localhost:3000/
 curl http://localhost:8000/admin/ -I
 
-# Check Lightsail firewall allows 3000, 8000
+# Check Lightsail firewall allows 80 (Nginx)
 ```
 
 ### Media Files Not Loading
@@ -465,10 +438,10 @@ docker compose logs | grep -i "killed\|oom"
 
 ```bash
 # Staging
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml [command]
+docker compose -f docker-compose.stg.yml [command]
 
 # Production
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml [command]
+docker compose -f docker-compose.prod.yml [command]
 ```
 
 ### URLs

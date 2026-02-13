@@ -233,9 +233,8 @@ if USE_S3:
     AWS_S3_VERIFY = True
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 
-    # Custom domain for media URLs (CloudFront or S3)
-    # If using CloudFront: set AWS_S3_CUSTOM_DOMAIN to your CloudFront domain
-    # If using S3 directly: leave empty to use default S3 URL
+    # Custom domain for media URLs. Stg/prod: app is behind CloudFront (SSL) with Nginx on Lightsail (HTTP);
+    # set AWS_S3_CUSTOM_DOMAIN to your CloudFront domain (or S3 URL if not using CloudFront for media).
     AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN', f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com')
 
     # Media storage - S3

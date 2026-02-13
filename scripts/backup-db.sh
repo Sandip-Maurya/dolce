@@ -1,8 +1,12 @@
 #!/bin/bash
-# Database backup script for PostgreSQL
-# Creates a timestamped backup of the database
+# Database backup script for PostgreSQL. Creates a timestamped backup of the database.
+# Run from repo root. Use the same -f compose file as your running stack.
+# Example: COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup-db.sh
+# Default: docker-compose.dev.yml (for local dev).
 
 set -e  # Exit on error
+
+COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.dev.yml}
 
 # Load environment variables if .env exists
 if [ -f ".env" ]; then
@@ -19,10 +23,10 @@ BACKUP_FILE="${BACKUP_DIR}/backup_${DB_NAME}_${TIMESTAMP}.sql.gz"
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
-echo "💾 Creating database backup: $BACKUP_FILE"
+echo "Creating database backup: $BACKUP_FILE (using $COMPOSE_FILE)"
 
 # Create backup using docker exec
-docker-compose exec -T db pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_FILE"
+docker compose -f "$COMPOSE_FILE" exec -T db pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_FILE"
 
 if [ $? -eq 0 ]; then
     echo "✅ Backup created successfully: $BACKUP_FILE"

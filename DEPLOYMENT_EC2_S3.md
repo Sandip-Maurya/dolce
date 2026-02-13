@@ -19,12 +19,13 @@ It matches the current repo structure:
   - `collectstatic` uploads to `s3://<bucket>/static/...`
   - uploads/media go to `s3://<bucket>/media/...`
 
-## Which compose files to use
+## Which compose file to use
 
-- **Production** (recommended):
-  - `docker-compose.yml` + `docker-compose.prod.yml` + `docker-compose.prod-https.yml`
-- **Dev on EC2** (optional):
-  - `docker-compose.yml` + `docker-compose.dev.yml` (+ `docker-compose.dev-https.yml` if you want HTTPS)
+- **Local dev**: `docker compose -f docker-compose.dev.yml up -d`
+- **Staging (kakshaonline.com)**: `docker compose -f docker-compose.stg.yml pull && up -d` (from `stg` branch)
+- **Production (dolcefiore.in)**: `docker compose -f docker-compose.prod.yml pull && up -d` (from `prod` branch)
+
+One file per environment. Stg/prod use GHCR images. CloudFront terminates SSL; Nginx on instance is HTTP only.
 
 ## Recommended deployment method (GitHub Actions + GHCR, no builds on EC2)
 
@@ -36,31 +37,19 @@ Instead, use GitHub Actions to build Docker images and push them to **GHCR**, th
   - **GitHub**: push code → Actions builds images
   - **EC2**: `docker compose pull` → `docker compose up -d` (no `--build`)
 
-When using GHCR images, include the override compose file:
-- `docker-compose.ghcr.yml`
-
-Notes:
-- If you deploy with `docker-compose.dev-https.yml` on EC2, **do not** include `docker-compose.dev.yml` in the same command.
-  - `docker-compose.dev.yml` mounts `/etc/nginx/nginx.conf` read-only (local dev convenience)
-  - `docker-compose.dev-https.yml` generates `/etc/nginx/nginx.conf` from a template (needs write access)
-
-## Branching & promotion workflow (GitHub → EC2)
+## Branching and promotion (GitHub to Lightsail)
 
 Your desired flow:
 
 1. **Develop** on a `feature/*` branch (or directly on `main`).
 2. Merge into **`main`** in GitHub.
-3. Promote to **staging** by merging **`main` → `dev`**.
-4. After client approval, promote to **production** by merging **`dev` → `prod`**.
+3. Promote to **staging** by merging **`main` → `stg`** (via PR).
+4. After approval, promote to **production** by merging **`stg` → `prod`** (via PR).
 
 How this maps to the repo’s deploy tooling:
 
-- **Staging EC2** should deploy from the `dev` branch.
-- **Production EC2** should deploy from the `prod` branch.
-
-This matches the existing scripts:
-- `scripts/deploy-dev.sh` expects you to be on **`dev`**
-- `scripts/deploy-prod.sh` expects you to be on **`prod`**
+- **Staging** deploys from the `stg` branch (kakshaonline.com).
+- **Production** deploys from the `prod` branch (dolcefiore.in). No deploy scripts; use `docker compose -f docker-compose.stg.yml` or `-f docker-compose.prod.yml` directly.
 
 > Recommendation: Keep `dev` and `prod` protected branches in GitHub, and promote only via PR merges. This makes “what is deployed” auditable.
 
@@ -298,11 +287,11 @@ RAZORPAY_WEBHOOK_SECRET=...
 
 ```bash
 # Preferred (GHCR): pull pre-built images (no builds on EC2)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 
 # Fallback (not recommended): build on EC2
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
+# docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Verify:
@@ -313,7 +302,7 @@ Verify:
 Logs:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 ### Notes about static + media
@@ -332,14 +321,14 @@ cd ~/dolce
 git pull
 
 # Preferred (GHCR): pull latest images built by GitHub Actions
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml -f docker-compose.ghcr.yml up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 
 # Fallback (not recommended): build on EC2
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml up -d --build
+# docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-You can also use `scripts/deploy-prod.sh`, but note it currently uses only `docker-compose.yml` + `docker-compose.prod.yml`. If you use HTTPS, prefer the 3-file compose command above (or update the script accordingly).
+Run `docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d` (no deploy scripts).
 
 ---
 
@@ -354,7 +343,7 @@ sudo certbot renew
 Reload Nginx container to pick up renewed certs:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod-https.yml restart nginx
+docker compose -f docker-compose.prod.yml restart nginx
 ```
 
 ---
@@ -366,7 +355,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
   - Check bucket policy (public read for `static/*` and `media/*`, or CloudFront)
   - Run `collectstatic` manually:
     ```bash
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+    docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
     ```
 
 - **Admin CSS missing**
