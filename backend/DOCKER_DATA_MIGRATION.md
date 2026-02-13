@@ -7,13 +7,13 @@ Quick reference for migrating data when using Docker Compose.
 ### Export Data
 ```bash
 # Export everything
-docker compose exec backend python manage.py export_content_data --output content_data_export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content_data_export.json
 
 # Export only products
-docker compose exec backend python manage.py export_content_data --output products.json --only-products
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output products.json --only-products
 
 # Export only content
-docker compose exec backend python manage.py export_content_data --output content.json --only-content
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content.json --only-content
 ```
 
 **File Location (Dev):** Files are saved to `./backend/` on your host machine (due to volume mount `./backend:/app`).
@@ -21,10 +21,10 @@ docker compose exec backend python manage.py export_content_data --output conten
 ### Import Data (Dev Server)
 ```bash
 # Import everything
-docker compose exec backend python manage.py import_content_data --input content_data_export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input content_data_export.json
 
 # Import with clearing existing
-docker compose exec backend python manage.py import_content_data --input content_data_export.json --clear-existing
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input content_data_export.json --clear-existing
 ```
 
 ## Migrating from Dev to Prod
@@ -38,7 +38,7 @@ ssh user@dev-server
 cd /path/to/dolce
 
 # Export data (creates file in ./backend/ on host)
-docker compose exec backend python manage.py export_content_data --output content_data_export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content_data_export.json
 
 # Verify file exists
 ls -lh backend/content_data_export.json
@@ -70,7 +70,7 @@ ls -lh backend/content_data_export.json
 docker cp backend/content_data_export.json dolce_backend:/app/content_data_export.json
 
 # Import using absolute path inside container
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+docker compose -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
 ```
 
 ### Alternative: Direct Transfer (Small Files)
@@ -85,7 +85,7 @@ scp backend/content_data_export.json user@prod-server:/path/to/dolce/backend/
 
 # 3. On prod server, copy into container and import
 docker cp backend/content_data_export.json dolce_backend:/app/content_data_export.json
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+docker compose -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
 ```
 
 ## Important Notes
@@ -101,8 +101,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend pyt
    - **Critical:** In production, you MUST copy files into the container using `docker cp` before importing
 
 3. **Compose Files:**
-   - **Dev:** `docker compose -f docker-compose.yml -f docker-compose.dev.yml`
-   - **Prod:** `docker compose -f docker-compose.yml -f docker-compose.prod.yml`
+   - **Dev:** `docker compose -f docker-compose.dev.yml`
+   - **Prod:** `docker compose -f docker-compose.prod.yml`
 
 4. **Command Syntax:**
    - Use `docker compose` (V2 syntax with space, not hyphen)
@@ -166,13 +166,13 @@ When using `--clear-existing`:
 **Scenario 1: First Migration**
 ```bash
 # Prod is empty, import everything
-docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
 ```
 
 **Scenario 2: Subsequent Migrations (Incremental Updates)**
 ```bash
 # Prod has existing data, update/merge with dev changes
-docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input /app/content_data_export.json
 # This will:
 # - Update products/categories that exist in both (same ID)
 # - Add new products/categories from dev
@@ -182,7 +182,7 @@ docker compose exec backend python manage.py import_content_data --input /app/co
 **Scenario 3: Sync Prod to Match Dev Exactly**
 ```bash
 # Replace all prod content with dev content
-docker compose exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+docker compose -f docker-compose.dev.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
 ```
 
 ## Example Workflow: Dev to Prod
@@ -190,7 +190,7 @@ docker compose exec backend python manage.py import_content_data --input /app/co
 ```bash
 # === ON DEV SERVER ===
 # 1. Export data
-docker compose exec backend python manage.py export_content_data --output content_data_export.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py export_content_data --output content_data_export.json
 
 # 2. Verify file exists on host
 ls -lh backend/content_data_export.json
@@ -206,7 +206,7 @@ aws s3 cp s3://your-bucket-name/content_data_export.json backend/content_data_ex
 docker cp backend/content_data_export.json dolce_backend:/app/content_data_export.json
 
 # 6. Import data (using absolute path inside container)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
+docker compose -f docker-compose.prod.yml exec backend python manage.py import_content_data --input /app/content_data_export.json --clear-existing
 ```
 
 ## Troubleshooting
@@ -215,7 +215,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend pyt
 - ⚠️ **CRITICAL:** In production, files on the host are NOT visible inside the container
 - You MUST copy the file into the container first: `docker cp backend/content_data_export.json dolce_backend:/app/content_data_export.json`
 - Use absolute path `/app/content_data_export.json` when importing
-- Verify file exists in container: `docker compose exec backend ls -lh /app/content_data_export.json`
+- Verify file exists in container: `docker compose -f docker-compose.dev.yml exec backend ls -lh /app/content_data_export.json`
 
 **File not found error (Dev):**
 - Make sure file path is relative to `/app` in container (e.g., `content_data_export.json`)

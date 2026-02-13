@@ -1,15 +1,78 @@
-# Production overrides for docker-compose.yml
+# Production (dolcefiore.in). CloudFront terminates SSL; Nginx HTTP internal routing only.
+# Usage: docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+
 services:
-  backend:
+  db:
+    image: postgres:16-alpine
+    container_name: dolce_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-dolce_db}
+      POSTGRES_USER: ${DB_USER:-dolce_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dolce_user} -d ${DB_NAME:-dolce_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dolce_network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c max_connections=50
+      -c effective_cache_size=256MB
+
+  backend:
+    image: ghcr.io/sandip-maurya/dolce-backend:prod
+    container_name: dolce_backend
+    env_file:
+      - .env
     environment:
       - DJANGO_ENV=production
       - DEBUG=False
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-dolce_db}
+      - DB_USER=${DB_USER:-dolce_user}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - FRONTEND_URL=http://frontend-next:3000
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+      - SECURE_SSL_REDIRECT=False
+      - USE_X_FORWARDED_HOST=True
+      - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
       - USE_S3=${USE_S3:-False}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-}
       - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-us-east-1}
+    volumes:
+      - ./backend/media:/app/media
+      - ./backend/staticfiles:/app/staticfiles
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - dolce_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+          cpus: '0.6'
+        reservations:
+          memory: 320M
     command: >
       sh -c "
         echo 'Waiting for database to be ready...' &&
@@ -19,9 +82,51 @@ services:
         mkdir -p /app/staticfiles &&
         python manage.py collectstatic --noinput &&
         echo 'Static files collected successfully' &&
-        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 180 --graceful-timeout 30 --access-logfile - --error-logfile - config.wsgi:application
+        gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 180 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 50 --access-logfile - --error-logfile - config.wsgi:application
       "
 
-  db:
+  frontend-next:
+    image: ghcr.io/sandip-maurya/dolce-frontend-next:prod
+    container_name: dolce_frontend_next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      - BACKEND_URL=http://backend:8000
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+      - TRUST_PROXY=true
+    networks:
+      - dolce_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.75'
+        reservations:
+          memory: 384M
+
+  nginx:
+    image: nginx:alpine
+    container_name: dolce_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.origin.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend/staticfiles:/static:ro
+      - ./backend/media:/media:ro
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      - backend
+      - frontend-next
+    networks:
+      - dolce_network
     restart: unless-stopped
 
+volumes:
+  postgres_data:
+
+networks:
+  dolce_network:
+    driver: bridge

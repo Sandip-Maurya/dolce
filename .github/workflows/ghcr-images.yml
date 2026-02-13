@@ -3,15 +3,14 @@ name: Build and Push Docker Images to GHCR
 on:
   push:
     branches:
-      - dev
+      - stg
       - prod
     paths:
       - 'backend/**'
       - 'frontend-next/**'
       - '.github/workflows/ghcr-images.yml'
-      - 'docker-compose.yml'
-      - 'docker-compose.ghcr.yml'
-      - 'docker-compose.ghcr-prod.yml'
+      - 'docker-compose.stg.yml'
+      - 'docker-compose.prod.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -48,14 +47,14 @@ jobs:
               echo "image_tag=prod" >> $GITHUB_OUTPUT
             else
               echo "environment=staging" >> $GITHUB_OUTPUT
-              echo "image_tag=dev" >> $GITHUB_OUTPUT
+              echo "image_tag=stg" >> $GITHUB_OUTPUT
             fi
           elif [ "${{ github.ref }}" == "refs/heads/prod" ]; then
             echo "environment=production" >> $GITHUB_OUTPUT
             echo "image_tag=prod" >> $GITHUB_OUTPUT
           else
             echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "image_tag=dev" >> $GITHUB_OUTPUT
+            echo "image_tag=stg" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
@@ -132,14 +131,14 @@ jobs:
             echo "SSH to **production** Lightsail and run:" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
             echo 'cd ~/dolce && git pull origin prod' >> $GITHUB_STEP_SUMMARY
-            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml pull' >> $GITHUB_STEP_SUMMARY
-            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr-prod.yml up -d' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.prod.yml pull' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.prod.yml up -d' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "SSH to **staging** Lightsail and run:" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
-            echo 'cd ~/dolce && git pull origin dev' >> $GITHUB_STEP_SUMMARY
-            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml pull' >> $GITHUB_STEP_SUMMARY
-            echo 'docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloudfront.yml -f docker-compose.ghcr.yml up -d' >> $GITHUB_STEP_SUMMARY
+            echo 'cd ~/dolce && git pull origin stg' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.stg.yml pull' >> $GITHUB_STEP_SUMMARY
+            echo 'docker compose -f docker-compose.stg.yml up -d' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
