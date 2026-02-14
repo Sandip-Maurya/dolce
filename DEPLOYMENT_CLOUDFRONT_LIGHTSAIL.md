@@ -50,6 +50,59 @@ This guide deploys **Dolce Fiore** with **CloudFront** terminating SSL and **Lig
 
 ---
 
+## Part 0: DNS and Nameserver Setup (Lightsail DNS Zones)
+
+CloudFront requires a **hostname** for the origin (not a bare IP). Many registrars (e.g. GoDaddy) lock or restrict A records. Using **Lightsail DNS zones** gives you full control: create an A record for `origin.<domain>` pointing to your Lightsail IP, then point the main domain to CloudFront. You need **one DNS zone per domain** (staging and production).
+
+### 0.1 Create a Lightsail DNS Zone (per domain)
+
+Do this once for **staging** (kakshaonline.com) and again for **production** (dolcefiore.in) when you set up prod.
+
+1. Go to **Lightsail Console** → **Networking** → **DNS zones**.
+2. Click **Create DNS zone**.
+3. **Zone name**: Enter the domain only (e.g. `kakshaonline.com` for staging, `dolcefiore.in` for production).
+4. Click **Create DNS zone**.
+5. Note the **nameservers** shown for this zone (e.g. `ns-xxx.awsdns-xx.com`). You will point your registrar to these.
+
+**Limit**: Up to 6 DNS zones per AWS account. Staging + production = 2 zones.
+
+### 0.2 Add DNS Records in the Zone
+
+In the Lightsail DNS zone you created, add these records. Replace placeholders with your actual values.
+
+**A record – Origin (for CloudFront)**
+
+| Type | Subdomain | Resolves to | Purpose |
+|------|-----------|-------------|--------|
+| A    | `origin`  | Your Lightsail **static IP** (e.g. 43.204.167.45 for staging) | CloudFront origin domain will be `origin.kakshaonline.com` or `origin.dolcefiore.in` |
+
+- **Name**: `origin` (subdomain only; results in `origin.kakshaonline.com` or `origin.dolcefiore.in`).
+- **Value**: The **static IP** of the Lightsail instance for this environment.
+- **TTL**: 300 (or 1 hour).
+
+**Do not add CNAME for @ or www yet** — add those after you create the CloudFront distribution (so you have the distribution domain name). See **Part 1.6** below.
+
+### 0.3 Nameserver Transfer at Your Registrar (e.g. GoDaddy)
+
+After the DNS zone and the `origin` A record exist:
+
+1. Log in at your **domain registrar** (e.g. GoDaddy) and open the domain (e.g. kakshaonline.com).
+2. Go to **Nameservers** (or **Manage DNS** → **Nameservers**).
+3. Change from default to **Custom** (or “I’ll use my own nameservers”).
+4. Enter the **exact nameservers** shown in the Lightsail DNS zone (e.g. two or four NS records).
+5. Save. Propagation can take from a few minutes up to 48 hours.
+
+**Important**: Remove any **domain forwarding** or “domain connection” that redirects the domain to an IP or URL; use DNS only so the domain can point to CloudFront without redirecting the browser.
+
+After propagation, `origin.kakshaonline.com` (or `origin.dolcefiore.in`) will resolve to your Lightsail IP. You can verify with:
+
+```bash
+# Replace with your origin hostname
+nslookup origin.kakshaonline.com
+```
+
+---
+
 ## Part 1: AWS Setup
 
 ### 1.1 Create S3 Bucket (Media Only)
@@ -71,28 +124,45 @@ This guide deploys **Dolce Fiore** with **CloudFront** terminating SSL and **Lig
 
 ### 1.3 Request SSL Certificate (ACM)
 
-**Important**: CloudFront requires certificates in **us-east-1** region.
+**Important**: CloudFront requires certificates in **us-east-1** region. Use **DNS validation** so you can add the validation records in your Lightsail DNS zone.
 
-1. Go to **ACM Console** in **us-east-1** (N. Virginia)
-2. Click **Request certificate** → **Request a public certificate**
-3. **Domain names**:
+**Staging (kakshaonline.com):**
+
+1. Go to **ACM Console** in **us-east-1** (N. Virginia).
+2. Click **Request certificate**.
+3. **Request a public certificate** → Next.
+4. **Domain names** (add both):
    - `kakshaonline.com`
-   - `*.kakshaonline.com`
-4. **Validation method**: DNS validation
-5. Add CNAME records to your DNS provider
-6. Wait for validation (5-30 minutes)
+   - `www.kakshaonline.com`
+   (Or use `*.kakshaonline.com` to cover all subdomains.)
+5. **Validation method**: DNS validation.
+6. Click **Request**. ACM will show **CNAME name** and **CNAME value** for each domain.
 
-Repeat for production: `dolcefiore.in`, `*.dolcefiore.in`
+**Add validation records in Lightsail DNS zone:**
+
+7. In ACM, for each domain, copy the **CNAME name** (e.g. `_abc123.kakshaonline.com`) and **CNAME value** (e.g. `_xyz.acm-validations.aws.`).
+8. Go to **Lightsail** → **DNS zones** → your zone (e.g. kakshaonline.com).
+9. **Add record**:
+   - **Type**: CNAME
+   - **Subdomain**: The part before the domain (e.g. ACM might show `_abc123.kakshaonline.com` → use subdomain `_abc123`).
+   - **Value**: The full CNAME value from ACM (e.g. `_xyz.acm-validations.aws.` — include trailing dot if shown).
+   - **TTL**: 300
+10. Repeat for the second domain (e.g. www or wildcard).
+11. Wait for ACM status to change to **Issued** (usually 5–30 minutes). Do not delete these CNAME records; they are used for renewal.
+
+**Production:** Repeat the same process in us-east-1 for `dolcefiore.in` and `www.dolcefiore.in` (or `*.dolcefiore.in`), and add the validation CNAME records in the **dolcefiore.in** Lightsail DNS zone.
 
 ### 1.4 Create CloudFront Distribution
 
-#### Step 1: Create with Lightsail Origin
+Use a **single origin hostname** for the app: `origin.kakshaonline.com` (staging) or `origin.dolcefiore.in` (production). That hostname must resolve to your Lightsail static IP (via the A record in Part 0). Nginx on Lightsail listens on port 80 and routes to backend:8000 and frontend-next:3000 internally.
+
+#### Step 1: Create with Lightsail (Nginx) Origin
 
 1. Go to **CloudFront Console** → **Create distribution**
-2. **Origin domain**: `YOUR_LIGHTSAIL_STATIC_IP`
+2. **Origin domain**: `origin.kakshaonline.com` (staging) or `origin.dolcefiore.in` (production) — **hostname, not IP**
 3. **Protocol**: HTTP only
-4. **HTTP port**: `3000`
-5. **Name**: `Lightsail-NextJS-3000`
+4. **HTTP port**: `80`
+5. **Name**: `Lightsail-Nginx` (or similar)
 
 #### Step 2: Default Cache Behavior
 
@@ -103,44 +173,54 @@ Repeat for production: `dolcefiore.in`, `*.dolcefiore.in`
 
 #### Step 3: Distribution Settings
 
-- **Alternate domain names (CNAMEs)**: `kakshaonline.com`, `www.kakshaonline.com`
-- **Custom SSL certificate**: Select your ACM certificate
+- **Alternate domain names (CNAMEs)**: `kakshaonline.com`, `www.kakshaonline.com` (staging) or `dolcefiore.in`, `www.dolcefiore.in` (production)
+- **Custom SSL certificate**: Select your ACM certificate from 1.3
 - **Default root object**: Leave empty
 
-#### Step 4: Add Additional Origins
+#### Step 4: Add S3 Origin (for media)
 
-After creation, go to **Origins** tab and add:
+After creation, go to **Origins** tab and **Add origin**:
 
-**S3 Origin (for media)**:
-- **Origin domain**: `dolce-staging-assets.s3.ap-south-1.amazonaws.com`
+- **Origin domain**: `dolce-staging-assets.s3.ap-south-1.amazonaws.com` (or prod bucket)
 - **Name**: `S3-media`
 - **Origin access**: Origin access control → Select `dolce-s3-oac`
 
-**Django Origin**:
-- **Origin domain**: `YOUR_LIGHTSAIL_STATIC_IP`
-- **Protocol**: HTTP only
-- **HTTP port**: `8000`
-- **Name**: `Lightsail-Django-8000`
+You only need **one Lightsail origin** (Nginx:80). All app paths are served by that origin; Nginx routes internally.
 
 #### Step 5: Create Cache Behaviors
 
-Go to **Behaviors** tab and create (in order):
+Go to **Behaviors** tab and create (in order). All app paths use the **Lightsail-Nginx** origin:
 
 | Path | Origin | Cache Policy | Origin Request Policy |
 |------|--------|--------------|----------------------|
 | `/media/*` | S3-media | CachingOptimized | CORS-S3Origin |
-| `/admin/*` | Lightsail-Django-8000 | CachingDisabled | AllViewer |
-| `/api/*` | Lightsail-Django-8000 | CachingDisabled | AllViewerExceptHostHeader |
-| `/orders/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
-| `/profile/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
-| `/cart` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
-| `/checkout/*` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
-| `/login` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
-| `/signup` | Lightsail-NextJS-3000 | CachingDisabled | AllViewer |
+| `/admin/*` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/api/*` | Lightsail-Nginx | CachingDisabled | AllViewerExceptHostHeader |
+| `/orders/*` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/profile/*` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/cart` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/checkout/*` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/login` | Lightsail-Nginx | CachingDisabled | AllViewer |
+| `/signup` | Lightsail-Nginx | CachingDisabled | AllViewer |
 
-**Default** (`*`) stays as Lightsail-NextJS-3000 with 5-min cache.
+**Default** (`*`) stays as Lightsail-Nginx with 5-min cache.
 
-#### Step 6: Update S3 Bucket Policy
+#### Step 6: Add DNS Records So the Site Loads (CNAME to CloudFront)
+
+After the distribution is created, copy its **distribution domain name** (e.g. `d1234abcd.cloudfront.net`). In your **Lightsail DNS zone** for this domain, add:
+
+| Type  | Name (subdomain) | Value |
+|-------|------------------|-------|
+| CNAME | `www`            | `d1234abcd.cloudfront.net` (your distribution domain) |
+
+**Root domain (@):** Lightsail DNS does **not** support ALIAS or CNAME-at-apex to CloudFront. Two options:
+
+- **Option A (recommended):** Use **www** as the primary URL. Add a **redirect** at your registrar (e.g. GoDaddy “Forwarding”) so `kakshaonline.com` → `https://www.kakshaonline.com`. DNS for the zone stays in Lightsail; only the redirect is at the registrar (before DNS is used for the request).
+- **Option B:** Use **Route 53** for this domain instead of Lightsail DNS so you can create an ALIAS record for `@` pointing to the CloudFront distribution.
+
+**Production:** When you create the prod distribution for dolcefiore.in, add the same CNAME for `www` in the **dolcefiore.in** Lightsail DNS zone, and use the same root redirect or Route 53 for `dolcefiore.in`.
+
+#### Step 7: Update S3 Bucket Policy
 
 Go to S3 → Bucket → Permissions → Bucket policy:
 
@@ -239,7 +319,7 @@ docker compose version
 # Clone repository
 git clone https://github.com/Sandip-Maurya/dolce.git ~/dolce
 cd ~/dolce
-git checkout dev
+git checkout stg
 
 # Create environment file
 cp .env.staging.example .env
@@ -296,14 +376,9 @@ curl http://localhost:3000/
 curl http://localhost:8000/admin/ -I
 ```
 
-### 2.6 Configure DNS
+### 2.6 DNS Summary
 
-Point domain to CloudFront (NOT Lightsail):
-
-| Record | Type | Value |
-|--------|------|-------|
-| `kakshaonline.com` | ALIAS/CNAME | `d1234xxx.cloudfront.net` |
-| `www.kakshaonline.com` | CNAME | `d1234xxx.cloudfront.net` |
+DNS is configured in **Part 0** (Lightsail DNS zone, nameserver transfer, A record for `origin`) and **Part 1.4 Step 6** (CNAME for `www` to CloudFront; root redirect or Route 53 if needed). Ensure `origin.kakshaonline.com` resolves to your Lightsail static IP and `www.kakshaonline.com` resolves to your CloudFront distribution.
 
 ---
 
@@ -351,12 +426,6 @@ docker compose -f docker-compose.stg.yml up -d
 cd ~/dolce && git pull origin prod
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
-```
-
-Or use the scripts:
-```bash
-./scripts/deploy-cloudfront-staging.sh
-./scripts/deploy-cloudfront-prod.sh
 ```
 
 ---
@@ -429,6 +498,26 @@ CSRF_TRUSTED_ORIGINS = ['https://kakshaonline.com', 'https://www.kakshaonline.co
 docker stats --no-stream
 docker compose logs | grep -i "killed\|oom"
 ```
+
+---
+
+## Production Runbook (dolcefiore.in)
+
+When moving to production, repeat the same flow with the **production** domain and resources:
+
+| Step | What to do |
+|------|------------|
+| **DNS zone** | Lightsail → DNS zones → Create zone for `dolcefiore.in` |
+| **Nameservers** | At registrar for dolcefiore.in, set nameservers to the Lightsail DNS zone NS values |
+| **A record** | In dolcefiore.in zone: `origin` → **production** Lightsail static IP |
+| **ACM cert** | us-east-1: Request cert for `dolcefiore.in`, `www.dolcefiore.in`; DNS validation |
+| **Validation** | Add the CNAME records ACM gives you into the dolcefiore.in Lightsail DNS zone; wait for Issued |
+| **CloudFront** | Create distribution: origin = `origin.dolcefiore.in`, port 80; S3 origin for prod bucket; alternate names = dolcefiore.in, www.dolcefiore.in; attach ACM cert; behaviors as in 1.4–1.5 |
+| **S3** | Create `dolce-prod-assets`, OAC, bucket policy for the **prod** distribution ID |
+| **DNS for site** | In dolcefiore.in zone: CNAME `www` → prod CloudFront distribution domain; root redirect at registrar or Route 53 ALIAS for @ |
+| **Lightsail** | Create prod instance (or use second instance), static IP, deploy with `docker-compose.prod.yml` and prod `.env` |
+
+Use **dolcefiore.in** and **www.dolcefiore.in** in `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS` in prod `.env` and Django settings.
 
 ---
 
