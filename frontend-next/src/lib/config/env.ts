@@ -1,22 +1,19 @@
 /**
  * Get the API base URL.
- * Server-side: Needs absolute URL (internal docker service or localhost)
- * Client-side: Uses relative path '/api' which is handled by Next.js rewrites
+ * Server-side: Needs absolute URL (internal docker service or localhost).
+ * Client-side (browser): Must use relative '/api' so requests go to same origin
+ * (e.g. https://www.kakshaonline.com/api/...) and CloudFront/Lightsail route them.
+ * NEXT_PUBLIC_API_URL is inlined at build time (no window), so we must use a
+ * runtime check for browser to avoid requests to http://backend:8000 (ERR_NAME_NOT_RESOLVED).
  */
-function getApiBaseUrl(): string {
-  // Server-side
-  if (typeof window === 'undefined') {
-    // Prefer internal docker network URL if set
-    if (process.env.INTERNAL_API_URL) {
-      return process.env.INTERNAL_API_URL;
-    }
-    // Fallback to NEXT_PUBLIC_API_URL or default
-    // If running in docker-compose, backend is at http://backend:8000/api
-    return process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000/api';
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    return '/api';
   }
-
-  // Client-side: use relative path so Next.js proxy handles it
-  return '/api';
+  if (process.env.INTERNAL_API_URL) {
+    return process.env.INTERNAL_API_URL;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000/api';
 }
 
 

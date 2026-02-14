@@ -1,4 +1,4 @@
-import { config } from '../config/env'
+import { config, getApiBaseUrl } from '../config/env'
 
 export class ApiError extends Error {
   public status: number
@@ -64,7 +64,8 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`
+    const baseUrl = getApiBaseUrl()
+    const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
