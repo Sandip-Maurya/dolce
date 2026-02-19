@@ -12,7 +12,10 @@ class CategorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'is_active', 'order']
+        fields = [
+            'id', 'name', 'slug', 'description', 'is_active', 'order',
+            'featured_on_homepage', 'homepage_image_url', 'homepage_order',
+        ]
 
 
 class SubcategorySerializer(serializers.ModelSerializer):
@@ -38,7 +41,11 @@ class CategoryWithSubcategoriesSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'is_active', 'order', 'subcategories']
+        fields = [
+            'id', 'name', 'slug', 'description', 'is_active', 'order',
+            'featured_on_homepage', 'homepage_image_url', 'homepage_order',
+            'subcategories',
+        ]
     
     @extend_schema_field(serializers.ListField(child=SubcategoryNestedSerializer()))
     def get_subcategories(self, obj) -> List[dict]:

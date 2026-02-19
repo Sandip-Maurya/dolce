@@ -47,14 +47,11 @@ CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-# Static files - use a storage backend in production (e.g., AWS S3, Cloudinary)
-# For now, using local static files collection
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_URL = '/static/'
-
-# Media files - configure based on your storage solution
-MEDIA_ROOT = BASE_DIR / 'media'
-MEDIA_URL = '/media/'
+# Static + media files
+#
+# Static files are always served locally (configured in base.py)
+# Media files go to S3 when USE_S3=True (configured in base.py)
+# No overrides needed here - base.py handles everything
 
 # Logging configuration for production
 LOGGING = {

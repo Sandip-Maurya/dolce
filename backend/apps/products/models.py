@@ -14,6 +14,9 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     order = models.IntegerField(default=0, help_text='Display order')
+    featured_on_homepage = models.BooleanField(default=False)
+    homepage_image_url = models.URLField(blank=True)
+    homepage_order = models.IntegerField(default=0, help_text='Order on homepage when featured')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -24,6 +27,7 @@ class Category(models.Model):
         indexes = [
             models.Index(fields=['slug']),
             models.Index(fields=['is_active']),
+            models.Index(fields=['featured_on_homepage']),
         ]
     
     def save(self, *args, **kwargs):

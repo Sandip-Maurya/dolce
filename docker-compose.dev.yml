@@ -1,18 +1,60 @@
-# Development overrides for docker-compose.yml
+# Dev environment (local machine only). Single file — no base stacking.
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Build when needed: docker compose -f docker-compose.dev.yml up -d --build
+
 services:
   db:
+    image: postgres:16-alpine
+    container_name: dolce_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-dolce_db}
+      POSTGRES_USER: ${DB_USER:-dolce_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dolce_user} -d ${DB_NAME:-dolce_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5432:5432"
+    networks:
+      - dolce_network
 
   backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: dolce_backend
+    env_file:
+      - .env
     environment:
       - DJANGO_ENV=development
       - DEBUG=True
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-dolce_db}
+      - DB_USER=${DB_USER:-dolce_user}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - FRONTEND_URL=http://frontend-next:3000
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+      - USE_S3=${USE_S3:-False}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-}
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-us-east-1}
     volumes:
       - ./backend:/app
       - ./backend/media:/app/media
       - ./backend/staticfiles:/app/staticfiles
       - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - dolce_network
     command: >
       sh -c "
         echo 'Waiting for database to be ready...' &&
@@ -25,18 +67,42 @@ services:
         gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile - --error-logfile - --reload config.wsgi:application
       "
 
-  frontend:
+  frontend-next:
+    build:
+      context: ./frontend-next
+      dockerfile: Dockerfile
+      args:
+        - BACKEND_URL=http://backend:8000
+    container_name: dolce_frontend_next
     environment:
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      - BACKEND_URL=http://backend:8000
+      - REVALIDATION_SECRET=${REVALIDATION_SECRET:-}
+    networks:
+      - dolce_network
+    depends_on:
+      - backend
 
   nginx:
+    image: nginx:alpine
+    container_name: dolce_nginx
     ports:
       - "8080:80"
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
-    # Override entrypoint to skip template processing (uses static config file)
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend/staticfiles:/static:ro
+      - ./backend/media:/media:ro
     entrypoint: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      - backend
+      - frontend-next
+    networks:
+      - dolce_network
 
+volumes:
+  postgres_data:
+
+networks:
+  dolce_network:
+    driver: bridge
