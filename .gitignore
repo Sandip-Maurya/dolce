@@ -212,3 +212,9 @@ logs/
 *.swp
 *~
 x*.py
+
+# development files
+.cursor/
+.continue/
+
+backend/gunicorn.ctl
