@@ -1,5 +1,7 @@
 # CloudFront + Lightsail Deployment Guide
 
+**This is the current deployment method (Lightsail + CloudFront).**
+
 This guide deploys **Dolce Fiore** with **CloudFront** terminating SSL and **Lightsail** for the app. **Nginx on Lightsail** listens on port 80 (HTTP) and routes internally to Django and Next.js; CloudFront forwards HTTPS traffic to Lightsail:80. **S3** is used for media; CloudFront behavior for `/media/*` points to S3.
 
 ## Architecture Overview
@@ -88,11 +90,11 @@ After the DNS zone and the `origin` A record exist:
 
 1. Log in at your **domain registrar** (e.g. GoDaddy) and open the domain (e.g. kakshaonline.com).
 2. Go to **Nameservers** (or **Manage DNS** → **Nameservers**).
-3. Change from default to **Custom** (or “I’ll use my own nameservers”).
+3. Change from default to **Custom** (or "I'll use my own nameservers").
 4. Enter the **exact nameservers** shown in the Lightsail DNS zone (e.g. two or four NS records).
 5. Save. Propagation can take from a few minutes up to 48 hours.
 
-**Important**: Remove any **domain forwarding** or “domain connection” that redirects the domain to an IP or URL; use DNS only so the domain can point to CloudFront without redirecting the browser.
+**Important**: Remove any **domain forwarding** or "domain connection" that redirects the domain to an IP or URL; use DNS only so the domain can point to CloudFront without redirecting the browser.
 
 After propagation, `origin.kakshaonline.com` (or `origin.dolcefiore.in`) will resolve to your Lightsail IP. You can verify with:
 
@@ -215,7 +217,7 @@ After the distribution is created, copy its **distribution domain name** (e.g. `
 
 **Root domain (@):** Lightsail DNS does **not** support ALIAS or CNAME-at-apex to CloudFront. Two options:
 
-- **Option A (recommended):** Use **www** as the primary URL. Add a **redirect** at your registrar (e.g. GoDaddy “Forwarding”) so `kakshaonline.com` → `https://www.kakshaonline.com`. DNS for the zone stays in Lightsail; only the redirect is at the registrar (before DNS is used for the request).
+- **Option A (recommended):** Use **www** as the primary URL. Add a **redirect** at your registrar (e.g. GoDaddy "Forwarding") so `kakshaonline.com` → `https://www.kakshaonline.com`. DNS for the zone stays in Lightsail; only the redirect is at the registrar (before DNS is used for the request).
 - **Option B:** Use **Route 53** for this domain instead of Lightsail DNS so you can create an ALIAS record for `@` pointing to the CloudFront distribution.
 
 **Production:** When you create the prod distribution for dolcefiore.in, add the same CNAME for `www` in the **dolcefiore.in** Lightsail DNS zone, and use the same root redirect or Route 53 for `dolcefiore.in`.
@@ -384,35 +386,9 @@ DNS is configured in **Part 0** (Lightsail DNS zone, nameserver transfer, A reco
 
 ## Part 3: CI/CD Pipeline
 
-### 3.1 How It Works
+See [ghcr-pipeline.md](ghcr-pipeline.md) for the build and deploy pipeline. Summary: push to `stg` or `prod` → GitHub Actions builds images → GHCR; on Lightsail run `docker compose -f docker-compose.stg.yml pull && up -d` (or prod).
 
-```
-Developer pushes to dev/prod branch
-         │
-         ▼
-GitHub Actions (automatic)
-  └── Build Docker images
-  └── Push to GHCR (ghcr.io/sandip-maurya/dolce-*)
-         │
-         ▼
-SSH to Lightsail (manual)
-  └── docker compose pull
-  └── docker compose up -d
-         │
-         ▼
-Live on CloudFront!
-```
-
-### 3.2 No AWS Secrets Required
-
-The simplified workflow only needs `GITHUB_TOKEN` (automatic).
-
-**What happens:**
-- ✅ Docker images built and pushed to GHCR
-- ✅ Next.js static files included in Docker image
-- ✅ Django uploads media to S3 using `.env` credentials on Lightsail
-
-### 3.3 Deployment Commands
+### Deployment Commands
 
 **Staging:**
 ```bash
