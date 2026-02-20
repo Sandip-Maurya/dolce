@@ -22,9 +22,11 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build-time args for Next.js config (rewrites need this at build time)
+# Build-time args for Next.js config (rewrites + image remotePatterns)
 ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=${BACKEND_URL}
+ARG NEXT_PUBLIC_MEDIA_DOMAIN
+ENV NEXT_PUBLIC_MEDIA_DOMAIN=${NEXT_PUBLIC_MEDIA_DOMAIN}
 
 RUN npm run build
 
