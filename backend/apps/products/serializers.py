@@ -9,13 +9,19 @@ from .models import Product, ProductImage, Category, Subcategory, Tag
 
 class CategorySerializer(serializers.ModelSerializer):
     """Serializer for categories."""
-    
+    homepage_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
         fields = [
             'id', 'name', 'slug', 'description', 'is_active', 'order',
             'featured_on_homepage', 'homepage_image_url', 'homepage_order',
         ]
+
+    def get_homepage_image_url(self, obj):
+        if obj.homepage_image:
+            return obj.homepage_image.url
+        return ''
 
 
 class SubcategorySerializer(serializers.ModelSerializer):
@@ -38,7 +44,8 @@ class SubcategoryNestedSerializer(serializers.ModelSerializer):
 class CategoryWithSubcategoriesSerializer(serializers.ModelSerializer):
     """Serializer for categories with nested subcategories."""
     subcategories = serializers.SerializerMethodField()
-    
+    homepage_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
         fields = [
@@ -46,7 +53,12 @@ class CategoryWithSubcategoriesSerializer(serializers.ModelSerializer):
             'featured_on_homepage', 'homepage_image_url', 'homepage_order',
             'subcategories',
         ]
-    
+
+    def get_homepage_image_url(self, obj):
+        if obj.homepage_image:
+            return obj.homepage_image.url
+        return ''
+
     @extend_schema_field(serializers.ListField(child=SubcategoryNestedSerializer()))
     def get_subcategories(self, obj) -> List[dict]:
         """Return subcategories as nested array."""
@@ -64,10 +76,16 @@ class TagSerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """Serializer for product images."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
         fields = ['image_url']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -97,7 +115,13 @@ class ProductSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ListField(child=serializers.URLField()))
     def get_images(self, obj) -> List[str]:
         """Return images as array of URLs."""
-        return [img.image_url for img in obj.images.all().order_by('order')]
+        urls = []
+        for img in obj.images.all().order_by('order'):
+            if img.image:
+                urls.append(img.image.url)
+            else:
+                urls.append('')
+        return urls
     
     @extend_schema_field(serializers.ListField(child=TagSerializer()))
     def get_tags(self, obj) -> List[dict]:

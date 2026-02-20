@@ -445,6 +445,24 @@ See `.env.example` for all available environment variables. Key variables:
 
 **Note**: Stg/prod use CloudFront for SSL; Nginx on Lightsail is HTTP-only. No certbot on instance.
 
+#### Media (images) and S3 (Option B)
+
+Images are uploaded from Django admin and stored in S3. For **staging and dev**, use the **production** S3 bucket and CloudFront domain so that:
+
+- Uploads from admin on staging (or dev) go to prod S3.
+- Export from staging and import to prod keeps the same file paths; no URL rewrite or S3 copy is needed.
+
+Set on **staging** (and optionally dev) the same media env as production:
+
+- `USE_S3=True`
+- `AWS_STORAGE_BUCKET_NAME=<prod-bucket>` (e.g. `dolce-prod-assets`)
+- `AWS_S3_CUSTOM_DOMAIN=<prod-cloudfront-domain>` (e.g. `d1234abcd.cloudfront.net` or your custom domain)
+- AWS credentials that can write to the prod bucket
+
+For the Next.js app, when it displays images from that domain (e.g. on staging), set:
+
+- `NEXT_PUBLIC_MEDIA_DOMAIN=<prod-cloudfront-hostname>` (hostname only, no protocol) so the Next.js `Image` component can load remote images.
+
 ### Generating Strong Secrets
 
 ```bash

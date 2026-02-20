@@ -15,7 +15,7 @@ class Category(models.Model):
     is_active = models.BooleanField(default=True)
     order = models.IntegerField(default=0, help_text='Display order')
     featured_on_homepage = models.BooleanField(default=False)
-    homepage_image_url = models.URLField(blank=True)
+    homepage_image = models.ImageField(upload_to='categories/', blank=True, null=True)
     homepage_order = models.IntegerField(default=0, help_text='Order on homepage when featured')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -136,7 +136,7 @@ class ProductImage(models.Model):
     """Product image model."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
-    image_url = models.URLField()
+    image = models.ImageField(upload_to='product_images/', blank=True, null=True)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     

@@ -48,7 +48,7 @@ class ProductImageInline(admin.TabularInline):
     """Inline admin for product images."""
     model = ProductImage
     extra = 1
-    fields = ['image_url', 'order']
+    fields = ['image', 'order']
     ordering = ['order']
 
 
@@ -71,7 +71,7 @@ class CategoryAdmin(RevalidatingModelAdmin):
             'fields': ('is_active', 'order')
         }),
         ('Homepage', {
-            'fields': ('featured_on_homepage', 'homepage_image_url', 'homepage_order')
+            'fields': ('featured_on_homepage', 'homepage_image', 'homepage_order')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -190,10 +190,10 @@ class ProductAdmin(RevalidatingModelAdmin):
     def image_preview(self, obj):
         """Display first product image as thumbnail."""
         first_image = obj.images.first()
-        if first_image:
+        if first_image and first_image.image:
             return format_html(
                 '<img src="{}" style="max-width: 50px; max-height: 50px;" />',
-                first_image.image_url
+                first_image.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -221,9 +221,11 @@ class ProductImageAdmin(admin.ModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        return format_html(
-            '<img src="{}" style="max-width: 100px; max-height: 100px;" />',
-            obj.image_url
-        )
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-width: 100px; max-height: 100px;" />',
+                obj.image.url
+            )
+        return '-'
     image_preview.short_description = 'Preview'
 

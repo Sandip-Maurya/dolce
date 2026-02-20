@@ -25,7 +25,8 @@ from .models import (
 
 class SustainableGiftingItemSerializer(serializers.ModelSerializer):
     """Serializer for sustainable gifting items."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = SustainableGiftingItem
         fields = [
@@ -37,10 +38,16 @@ class SustainableGiftingItemSerializer(serializers.ModelSerializer):
             'is_active',
         ]
 
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
+
 
 class TextTestimonialSerializer(serializers.ModelSerializer):
     """Serializer for text testimonials."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = TextTestimonial
         fields = [
@@ -53,10 +60,16 @@ class TextTestimonialSerializer(serializers.ModelSerializer):
             'order',
         ]
 
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
+
 
 class VideoTestimonialSerializer(serializers.ModelSerializer):
     """Serializer for video testimonials."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = VideoTestimonial
         fields = [
@@ -69,6 +82,11 @@ class VideoTestimonialSerializer(serializers.ModelSerializer):
             'image_url',
             'order',
         ]
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
 
 
 class AboutUsSectionSerializer(serializers.ModelSerializer):
@@ -115,7 +133,8 @@ class OurCommitmentSectionSerializer(serializers.ModelSerializer):
 
 class PhotoGalleryItemSerializer(serializers.ModelSerializer):
     """Serializer for Photo Gallery items."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = PhotoGalleryItem
         fields = [
@@ -126,10 +145,16 @@ class PhotoGalleryItemSerializer(serializers.ModelSerializer):
             'is_active',
         ]
 
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
+
 
 class BlogPostSerializer(serializers.ModelSerializer):
     """Serializer for Blog posts."""
-    
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = BlogPost
         fields = [
@@ -141,6 +166,11 @@ class BlogPostSerializer(serializers.ModelSerializer):
             'order',
             'is_active',
         ]
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return ''
 
 
 class ContactSubmissionSerializer(serializers.ModelSerializer):
@@ -228,7 +258,8 @@ class ContactInfoSerializer(serializers.ModelSerializer):
 
 class HeroSectionSerializer(serializers.ModelSerializer):
     """Serializer for homepage hero section."""
-    
+    background_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = HeroSection
         fields = [
@@ -243,6 +274,11 @@ class HeroSectionSerializer(serializers.ModelSerializer):
             'background_image_url',
             'is_active',
         ]
+
+    def get_background_image_url(self, obj):
+        if obj.background_image:
+            return obj.background_image.url
+        return ''
 
 
 class TrustBarItemSerializer(serializers.ModelSerializer):
@@ -263,7 +299,8 @@ class FAQSerializer(serializers.ModelSerializer):
 
 class CorporateGiftingSectionSerializer(serializers.ModelSerializer):
     """Serializer for corporate gifting section."""
-    
+    background_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = CorporateGiftingSection
         fields = [
@@ -278,6 +315,11 @@ class CorporateGiftingSectionSerializer(serializers.ModelSerializer):
             'background_image_url',
             'is_active',
         ]
+
+    def get_background_image_url(self, obj):
+        if obj.background_image:
+            return obj.background_image.url
+        return ''
 
 
 class SeasonalSectionSerializer(serializers.ModelSerializer):

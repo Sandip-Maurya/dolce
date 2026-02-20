@@ -68,7 +68,7 @@ class SustainableGiftingItemAdmin(RevalidatingModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'title', 'description', 'image_url')
+            'fields': ('id', 'title', 'description', 'image')
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -83,10 +83,10 @@ class SustainableGiftingItemAdmin(RevalidatingModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: cover;" />',
-                obj.image_url
+                obj.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -115,7 +115,7 @@ class TextTestimonialAdmin(RevalidatingModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'text', 'rating', 'location', 'image_url')
+            'fields': ('id', 'name', 'text', 'rating', 'location', 'image')
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -130,10 +130,10 @@ class TextTestimonialAdmin(RevalidatingModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: cover; border-radius: 50%;" />',
-                obj.image_url
+                obj.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -162,7 +162,7 @@ class VideoTestimonialAdmin(RevalidatingModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'text', 'video_url', 'rating', 'location', 'image_url')
+            'fields': ('id', 'name', 'text', 'video_url', 'rating', 'location', 'image')
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -177,10 +177,10 @@ class VideoTestimonialAdmin(RevalidatingModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: cover; border-radius: 50%;" />',
-                obj.image_url
+                obj.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -323,7 +323,7 @@ class PhotoGalleryItemAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'title', 'image_url')
+            'fields': ('id', 'title', 'image')
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -338,10 +338,10 @@ class PhotoGalleryItemAdmin(admin.ModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: cover;" />',
-                obj.image_url
+                obj.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -370,7 +370,7 @@ class BlogPostAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'title', 'content', 'image_url', 'published_date')
+            'fields': ('id', 'title', 'content', 'image', 'published_date')
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -385,10 +385,10 @@ class BlogPostAdmin(admin.ModelAdmin):
     
     def image_preview(self, obj):
         """Display image as thumbnail."""
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: cover;" />',
-                obj.image_url
+                obj.image.url
             )
         return '-'
     image_preview.short_description = 'Preview'
@@ -549,7 +549,7 @@ class HeroSectionAdmin(RevalidatingModelAdmin):
             'fields': ('primary_cta_text', 'primary_cta_link', 'secondary_cta_text', 'secondary_cta_link')
         }),
         ('Media', {
-            'fields': ('background_image_url',)
+            'fields': ('background_image',)
         }),
         ('Status', {'fields': ('is_active',)}),
         ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
@@ -636,7 +636,7 @@ class CorporateGiftingSectionAdmin(RevalidatingModelAdmin):
     fieldsets = (
         ('Content', {'fields': ('id', 'title', 'description', 'features')}),
         ('CTAs', {'fields': ('primary_cta_text', 'primary_cta_link', 'secondary_cta_text', 'secondary_cta_link')}),
-        ('Media', {'fields': ('background_image_url',)}),
+        ('Media', {'fields': ('background_image',)}),
         ('Status', {'fields': ('is_active',)}),
         ('Timestamps', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )

@@ -249,11 +249,10 @@ class Command(BaseCommand):
             if tag_objects:
                 product.tags.set(tag_objects)
 
-            # Create product images
-            for order, image_url in enumerate(product_data['images'], start=0):
+            # Create product images (image file must be uploaded in admin; mock only sets order)
+            for order in range(len(product_data.get('images', []))):
                 ProductImage.objects.create(
                     product=product,
-                    image_url=image_url,
                     order=order,
                 )
 

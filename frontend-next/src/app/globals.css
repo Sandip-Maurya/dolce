@@ -1,5 +1,6 @@
-@import "tailwindcss";
+/* Fonts first so @import precedes other rules */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
 @theme {
   --color-beige-50: #faf9f7;
