@@ -107,6 +107,7 @@ jobs:
           labels: ${{ steps.frontend-meta.outputs.labels }}
           build-args: |
             BACKEND_URL=http://backend:8000
+            NEXT_PUBLIC_MEDIA_DOMAIN=dolcefiore.in
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
