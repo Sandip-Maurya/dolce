@@ -218,3 +218,6 @@ x*.py
 .continue/
 
 backend/gunicorn.ctl
+
+# scripts pycache
+scripts/__pycache__/

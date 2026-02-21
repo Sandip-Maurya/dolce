@@ -22,7 +22,9 @@ dolce/
 │   ├── nginx.origin.conf       # Stg/prod behind CloudFront (HTTP)
 │   └── conf.d/
 ├── scripts/
-│   └── backup-db.sh            # Database backup (see script header for COMPOSE_FILE)
+│   ├── backup-db.py            # Database backup (S3); requires AWS_STORAGE_BUCKET_NAME
+│   ├── backup-db.sh            # Legacy bash backup (local only)
+│   └── restore-db.py           # Restore from S3 or local file
 ├── docker-compose.dev.yml      # Dev (local). Single file.
 ├── docker-compose.stg.yml      # Staging (Lightsail, kakshaonline.com). Single file.
 ├── docker-compose.prod.yml     # Production (Lightsail, dolcefiore.in). Single file.

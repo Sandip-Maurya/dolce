@@ -143,7 +143,8 @@ docker compose -f docker-compose.dev.yml exec backend python manage.py load_mock
 
 ```bash
 docker compose -f docker-compose.dev.yml exec db psql -U dolce_user -d dolce_db
-docker compose -f docker-compose.dev.yml exec db pg_dump -U dolce_user dolce_db > backup.sql
+# Backup (with S3 upload): python scripts/backup-db.py
+# Or manual: docker compose -f docker-compose.dev.yml exec db pg_dump -U dolce_user dolce_db > backup.sql
 ```
 
 ### Nginx
