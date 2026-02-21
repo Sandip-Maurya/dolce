@@ -2,8 +2,19 @@
 Product models for Dolce Fiore.
 """
 import uuid
+from pathlib import Path
+
 from django.db import models
 from django.utils.text import slugify
+
+
+def product_image_upload_to(instance, filename):
+    """Upload product images to product_images/<product_slug>/<filename>_<unique_id>.<extension>."""
+    product_slug = instance.product.slug if instance.product_id else 'unknown'
+    unique_id = uuid.uuid4().hex[:12]
+    path = Path(filename)
+    new_filename = f'{path.stem}_{unique_id}{path.suffix}'
+    return f'product_images/{product_slug}/{new_filename}'
 
 
 class Category(models.Model):
@@ -136,7 +147,7 @@ class ProductImage(models.Model):
     """Product image model."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='product_images/', blank=True, null=True)
+    image = models.ImageField(upload_to=product_image_upload_to, blank=True, null=True)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     

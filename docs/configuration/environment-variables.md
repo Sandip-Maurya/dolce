@@ -39,6 +39,8 @@ Set on **staging** (and optionally dev):
 
 - `USE_S3=True`
 - `AWS_STORAGE_BUCKET_NAME=<prod-bucket>` (e.g. `dolce-prod-assets`)
+
+**Backups:** The backup scripts (`scripts/backup-db.py`, `scripts/restore-db.py`) require `AWS_STORAGE_BUCKET_NAME` to upload and restore from S3. Backups are stored at `s3://{bucket}/backups/{env}/`.
 - `AWS_S3_CUSTOM_DOMAIN=<prod-cloudfront-domain>` (e.g. `d1234abcd.cloudfront.net` or your custom domain)
 - AWS credentials that can write to the prod bucket
 

@@ -98,11 +98,11 @@ Pull the latest code, run `docker compose -f docker-compose.<env>.yml pull && up
 
 ### How do I backup the database?
 
-Use `./scripts/backup-db.sh` or run `docker compose -f docker-compose.dev.yml exec db pg_dump -U dolce_user dolce_db > backup.sql`. See [operations.md](operations.md#backups).
+Use `python scripts/backup-db.py` with `COMPOSE_FILE` set for your environment. Requires `AWS_STORAGE_BUCKET_NAME` in `.env`. See [operations.md](operations.md#backups).
 
 ### How do I restore from a backup?
 
-`docker compose -f docker-compose.dev.yml exec -T db psql -U dolce_user dolce_db < backup.sql`. Use the appropriate compose file for the environment.
+`python scripts/restore-db.py --latest` (or `--s3-key KEY` / `--file PATH`). Set `COMPOSE_FILE` for the target environment. See [operations.md](operations.md#backups).
 
 ### Nginx shows "502 Bad Gateway"
 
