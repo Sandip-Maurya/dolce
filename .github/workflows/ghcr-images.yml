@@ -136,10 +136,28 @@ jobs:
             echo 'docker compose -f docker-compose.prod.yml up -d' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
-            echo "SSH to **staging** Lightsail and run:" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging:** Deployed automatically by \`deploy-staging\` job." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To deploy manually (e.g. if CD was skipped):" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
             echo 'cd ~/dolce && git pull origin stg' >> $GITHUB_STEP_SUMMARY
             echo 'docker compose -f docker-compose.stg.yml pull' >> $GITHUB_STEP_SUMMARY
             echo 'docker compose -f docker-compose.stg.yml up -d' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+  deploy-staging:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/stg'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Lightsail staging
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STG_LIGHTSAIL_HOST }}
+          username: ubuntu
+          key: ${{ secrets.STG_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/dolce && git pull origin stg
+            docker compose -f docker-compose.stg.yml pull
+            docker compose -f docker-compose.stg.yml up -d

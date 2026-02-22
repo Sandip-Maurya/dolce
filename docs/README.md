@@ -13,7 +13,7 @@ All project documentation lives here. Use the links below to find what you need.
 | **API** | [api.md](api.md) | API overview, Swagger link, endpoint list |
 | **Configuration** | [configuration/environment-variables.md](configuration/environment-variables.md) | Environment variables and per-env comparison |
 | **Deployment** | [deployment/cloudfront-lightsail.md](deployment/cloudfront-lightsail.md) | Current deployment (Lightsail + CloudFront) |
-| **Deployment** | [deployment/ghcr-pipeline.md](deployment/ghcr-pipeline.md) | GHCR + GitHub Actions build and deploy |
+| **Deployment** | [deployment/ghcr-pipeline.md](deployment/ghcr-pipeline.md) | GHCR + GitHub Actions (staging auto-deploy, production manual) |
 | **Deployment** | [deployment/ec2-s3-legacy.md](deployment/ec2-s3-legacy.md) | Legacy EC2 + S3 option |
 | **Operations** | [operations.md](operations.md) | Runbooks, backups, data migration |
 | **Security** | [security.md](security.md) | Security practices and hardening |

@@ -6,7 +6,8 @@ Instead of building Docker images on your Lightsail instance (which can be slow 
 
 1. **Builds images in GitHub Actions** when you push to the `stg` or `prod` branch
 2. **Pushes images to GHCR** (tags `:stg` and `:prod`; no auth needed on instance)
-3. **On Lightsail:** `docker compose -f docker-compose.stg.yml pull && up -d` (or `docker-compose.prod.yml`)
+3. **Staging (stg):** Push to `stg` triggers **automatic CD** — the workflow SSHs to Lightsail and runs `git pull`, `docker compose pull`, and `up -d`
+4. **Production (prod):** Images are built and pushed; you **deploy manually** (SSH to Lightsail and run the same compose commands)
 
 This solves the "Next.js build hangs on small instances" problem and makes deployments faster and more reliable.
 
@@ -19,6 +20,7 @@ This solves the "Next.js build hangs on small instances" problem and makes deplo
 - Repository must be on GitHub (this guide assumes `Sandip-Maurya/dolce`)
 - GitHub Actions must be enabled (enabled by default for public repos)
 - The workflow uses `GITHUB_TOKEN` automatically (no secrets needed for public images)
+- **For staging CD:** Add repository secrets `STG_SSH_PRIVATE_KEY` and `STG_LIGHTSAIL_HOST` (see [GitHub Secrets for staging CD](#github-secrets-for-staging-cd))
 
 ### Lightsail instance
 
@@ -26,6 +28,7 @@ This solves the "Next.js build hangs on small instances" problem and makes deplo
 - Git access to your repository
 - `.env` file configured with your production settings
 - SSL is terminated at CloudFront (no certbot on instance)
+- **For staging CD:** SSH public key for GitHub Actions must be in `~/.ssh/authorized_keys` on the staging instance
 
 ---
 
@@ -46,6 +49,26 @@ The GitHub Actions workflow (`.github/workflows/ghcr-images.yml`) triggers on:
 
 - **Push to `stg` or `prod`** (when backend/frontend or compose files change)
 - **Manual trigger** via GitHub Actions UI (`workflow_dispatch`)
+
+### Staging vs production
+
+| Branch | Build & push images | Deploy to Lightsail |
+|--------|---------------------|----------------------|
+| **stg** | Yes | **Automatic** (SSH from Actions) |
+| **prod** | Yes | Manual (you SSH and run compose) |
+
+---
+
+## GitHub Secrets for staging CD
+
+To enable automatic deployment for staging, add these **repository secrets** (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Description |
+|--------|-------------|
+| `STG_LIGHTSAIL_HOST` | Staging Lightsail IP or hostname (e.g. `43.204.x.x` or `origin.kakshaonline.com`) |
+| `STG_SSH_PRIVATE_KEY` | Full contents of the SSH private key (PEM) that can log in as `ubuntu` to the staging instance |
+
+The matching **public key** must be on the staging instance (e.g. in `~/.ssh/authorized_keys`). Generate a dedicated deploy key with `ssh-keygen -t ed25519 -C "github-actions-stg" -f stg_deploy_key -N ""` and add the `.pub` to Lightsail.
 
 ---
 
@@ -132,43 +155,62 @@ curl https://yourdomain.com/health
 
 ## Updating the application
 
-### Standard update flow
+### Staging (automatic CD)
 
-1. **Push changes to `stg` or `prod` branch** (triggers GitHub Actions build):
+1. Merge your changes into `stg` and push:
 
 ```bash
-git add .
-git commit -m "Your changes"
+git checkout stg
+git merge main   # or your feature branch
 git push origin stg
-# or: git push origin prod
 ```
 
-2. **Wait for GitHub Actions to complete** (check Actions tab, usually 5–10 minutes)
+2. GitHub Actions will **build images**, push to GHCR, then **deploy to staging Lightsail** (SSH + `git pull` + `docker compose pull` + `up -d`). No manual SSH needed.
 
-3. **On Lightsail, pull and restart** (use the matching compose file):
+3. Check the **Actions** tab to confirm both `build-and-push` and `deploy-staging` jobs succeed.
+
+### Production (manual deploy)
+
+1. Push changes to `prod` (triggers build only):
+
+```bash
+git checkout prod
+git merge stg
+git push origin prod
+```
+
+2. Wait for GitHub Actions to complete (build and push images).
+
+3. **SSH to production Lightsail** and run:
 
 ```bash
 cd ~/dolce
-git pull origin stg   # or origin prod
-
-# Staging
-docker compose -f docker-compose.stg.yml pull
-docker compose -f docker-compose.stg.yml up -d
-
-# Production
-# docker compose -f docker-compose.prod.yml pull
-# docker compose -f docker-compose.prod.yml up -d
+git pull origin prod
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Quick update script
+### Manual staging deploy (if needed)
 
-Create `scripts/deploy-ghcr.sh` on Lightsail:
+If you need to deploy staging without a new push (e.g. re-run deploy after a fix), SSH to staging Lightsail and run:
+
+```bash
+cd ~/dolce
+git pull origin stg
+docker compose -f docker-compose.stg.yml pull
+docker compose -f docker-compose.stg.yml up -d
+```
+
+### Quick update script (production or manual staging)
+
+On Lightsail you can add `scripts/deploy-ghcr.sh` for a one-command deploy (useful for **production** or when re-deploying staging manually):
 
 ```bash
 #!/bin/bash
 set -e
 cd ~/dolce
-git pull origin stg   # or prod
+# Use stg or prod as needed
+git pull origin prod
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 echo "Deployment complete!"
@@ -281,6 +323,17 @@ git push origin stg
 - Ensure build context paths are correct in workflow file
 - Try manual trigger to see full logs
 
+### deploy-staging job fails (SSH or command errors)
+
+**Problem**: `deploy-staging` job fails (e.g. "Permission denied" or "Host key verification failed")
+
+**Solutions**:
+- Ensure `STG_SSH_PRIVATE_KEY` and `STG_LIGHTSAIL_HOST` are set in GitHub repo Settings → Secrets and variables → Actions
+- Verify the **public key** is in `~/.ssh/authorized_keys` on the staging Lightsail instance (user `ubuntu`)
+- Confirm Lightsail firewall allows SSH (port 22) from the internet (or restrict to GitHub Actions IPs if desired)
+- Test SSH from your machine: `ssh -i /path/to/private_key ubuntu@<STG_LIGHTSAIL_HOST>`
+- If the job fails on `git pull` or `docker compose`, SSH to the instance and run the same commands to see the error
+
 ---
 
 ## Comparison: GHCR vs local build
@@ -292,7 +345,7 @@ git push origin stg
 | **Reliability** | High (consistent environment) | Low (OOM, disk space issues) |
 | **Instance resource usage** | Minimal (just pull + run) | High (CPU/RAM/disk during build) |
 | **Rollback** | Easy (pin to SHA tag) | Requires rebuilding old commit |
-| **CI/CD integration** | Built-in (Actions) | Manual (SSH + commands) |
+| **CI/CD integration** | Built-in (Actions). **Staging:** full CD (build + auto-deploy). **Production:** build only, deploy manual | Manual (SSH + commands) |
 
 ---
 

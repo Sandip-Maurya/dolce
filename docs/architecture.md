@@ -83,8 +83,8 @@ Three-branch workflow: **main** → **stg** → **prod**. Stg and prod are prote
 ### 2. stg branch (staging)
 
 - Staging environment (kakshaonline.com on Lightsail).
-- Promoted from `main` via PR when ready for testing.
-- Pushes trigger GHCR image build with tag `:stg`. Deploy with `docker compose -f docker-compose.stg.yml pull && up -d`.
+- Promoted from `main` via PR (or merge) when ready for testing.
+- Pushes trigger GHCR image build with tag `:stg` and **automatic CD**: the pipeline SSHs to Lightsail and runs `git pull`, `docker compose pull`, and `up -d`. No manual deploy needed.
 
 ### 3. prod branch (production)
 
