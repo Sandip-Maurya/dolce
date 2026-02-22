@@ -76,6 +76,26 @@
 }
 
 @layer utilities {
+  /* Hero carousel pagination - gold dots */
+  .hero-carousel .swiper-pagination {
+    bottom: 1rem;
+  }
+  .hero-carousel .swiper-pagination-bullet {
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 1;
+    transition: width 0.2s, background 0.2s;
+  }
+  .hero-carousel .swiper-pagination-bullet:hover {
+    background: rgba(255, 255, 255, 0.8);
+  }
+  .hero-carousel .swiper-pagination-bullet-active {
+    width: 24px;
+    border-radius: 9999px;
+    background: var(--color-gold-300);
+  }
+
   /* Hero section vignette effect */
   .hero-vignette {
     background: radial-gradient(ellipse at center, transparent 0%, rgba(61, 61, 61, 0.3) 100%);

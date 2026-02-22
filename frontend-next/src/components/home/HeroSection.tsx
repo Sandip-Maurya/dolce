@@ -1,9 +1,16 @@
+'use client'
+
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Container } from '@/components/Container'
 import { Button } from '@/components/Button'
 import type { HeroSection as HeroSectionType } from '@/lib/api/endpoints/content'
 import { defaultHero } from '@/lib/defaults/homepage'
+
+const HeroCarousel = dynamic(
+  () => import('./HeroCarousel').then((m) => ({ default: m.HeroCarousel })),
+  { ssr: false }
+)
 
 interface HeroSectionProps {
   data: HeroSectionType | null
@@ -11,19 +18,16 @@ interface HeroSectionProps {
 
 export function HeroSection({ data }: HeroSectionProps) {
   const hero = data ?? defaultHero
-  const imageUrl = hero.background_image_url || defaultHero.background_image_url
+  const imageUrls =
+    hero.background_image_urls?.length
+      ? hero.background_image_urls
+      : [hero.background_image_url || defaultHero.background_image_url].filter(Boolean)
 
   return (
     <section className="w-full mb-0">
       {/* Image block: full-bleed, height from aspect ratio (no max limit) */}
       <div className="relative w-full aspect-[2/1]">
-        <Image
-          src={imageUrl}
-          alt="Premium artisanal gift hampers with organic treats"
-          fill
-          priority
-          className="object-cover object-center"
-        />
+        <HeroCarousel imageUrls={imageUrls} />
       </div>
 
       {/* Content block: compact card and section, secondary to image */}

@@ -15,13 +15,18 @@ class User(AbstractUser):
     name = models.CharField(max_length=150)
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name', 'username']
+    REQUIRED_FIELDS = ['name']
     
     class Meta:
         db_table = 'users'
         verbose_name = 'User'
         verbose_name_plural = 'Users'
-    
+
+    def save(self, *args, **kwargs):
+        """Always keep username in sync with email for AbstractUser compatibility."""
+        self.username = self.email
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.email
 

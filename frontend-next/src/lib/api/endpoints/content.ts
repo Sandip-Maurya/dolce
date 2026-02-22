@@ -117,6 +117,7 @@ export interface HeroSection {
   secondary_cta_text: string
   secondary_cta_link: string
   background_image_url: string
+  background_image_urls?: string[]
   is_active: boolean
 }
 
@@ -197,7 +198,7 @@ export const contentApi = {
   fetchStoreCenters: () =>
     apiClient.get<StoreCenter[]>('/content/store-centers/'),
   fetchHeroSection: () =>
-    apiClient.get<HeroSection>('/content/hero/').catch((e) => {
+    apiClient.get<HeroSection>('/content/hero/', undefined, { cache: 'no-store' }).catch((e) => {
       // Return null for any error (404, network timeout, etc.) - page will use defaults
       console.error('Failed to fetch hero section', e)
       return null

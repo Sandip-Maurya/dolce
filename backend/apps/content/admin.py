@@ -17,6 +17,7 @@ from .models import (
     ContactInfo,
     StoreCenter,
     HeroSection,
+    HeroSectionImage,
     TrustBarItem,
     FAQ,
     CorporateGiftingSection,
@@ -532,6 +533,12 @@ class ContactInfoAdmin(RevalidatingModelAdmin):
         return True
 
 
+class HeroSectionImageInline(admin.TabularInline):
+    model = HeroSectionImage
+    extra = 1
+    fields = ['image', 'order']
+
+
 @admin.register(HeroSection)
 class HeroSectionAdmin(RevalidatingModelAdmin):
     """Admin for homepage hero section."""
@@ -540,6 +547,7 @@ class HeroSectionAdmin(RevalidatingModelAdmin):
     search_fields = ['headline', 'subheadline']
     ordering = ['-created_at']
     readonly_fields = ['id', 'created_at', 'updated_at']
+    inlines = [HeroSectionImageInline]
 
     fieldsets = (
         ('Content', {
