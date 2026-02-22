@@ -285,7 +285,7 @@ def store_centers_view(request):
 @permission_classes([AllowAny])
 def hero_view(request):
     """Get active hero section. 404 if none (frontend uses static fallback)."""
-    instance = HeroSection.objects.filter(is_active=True).order_by('-created_at').first()
+    instance = HeroSection.objects.filter(is_active=True).order_by('-created_at').prefetch_related('images').first()
     if not instance:
         return Response(status=status.HTTP_404_NOT_FOUND)
     serializer = HeroSectionSerializer(instance)

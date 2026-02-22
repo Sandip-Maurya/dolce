@@ -129,7 +129,11 @@ class ApiClient {
     return data as T
   }
 
-  async get<T>(endpoint: string, queryParams?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async get<T>(
+    endpoint: string,
+    queryParams?: Record<string, string | number | boolean | undefined>,
+    fetchOptions?: RequestInit
+  ): Promise<T> {
     let url = endpoint
     if (queryParams) {
       const params = new URLSearchParams()
@@ -143,7 +147,7 @@ class ApiClient {
         url += `?${queryString}`
       }
     }
-    return this.request<T>(url, { method: 'GET' })
+    return this.request<T>(url, { method: 'GET', ...fetchOptions })
   }
 
   async post<T>(endpoint: string, data?: unknown): Promise<T> {

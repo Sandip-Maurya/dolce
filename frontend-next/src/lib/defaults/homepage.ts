@@ -10,6 +10,7 @@ export const defaultHero: Omit<HeroSection, 'id' | 'is_active'> & { id?: string;
   secondary_cta_text: 'Our Story',
   secondary_cta_link: '/about',
   background_image_url: '/hero.jpeg',
+  background_image_urls: ['/hero.jpeg'],
 }
 
 export const defaultTrustBarItems: Omit<TrustBarItem, 'id'>[] = [

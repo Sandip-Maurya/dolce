@@ -259,6 +259,7 @@ class ContactInfoSerializer(serializers.ModelSerializer):
 class HeroSectionSerializer(serializers.ModelSerializer):
     """Serializer for homepage hero section."""
     background_image_url = serializers.SerializerMethodField()
+    background_image_urls = serializers.SerializerMethodField()
 
     class Meta:
         model = HeroSection
@@ -272,13 +273,21 @@ class HeroSectionSerializer(serializers.ModelSerializer):
             'secondary_cta_text',
             'secondary_cta_link',
             'background_image_url',
+            'background_image_urls',
             'is_active',
         ]
 
-    def get_background_image_url(self, obj):
+    def get_background_image_urls(self, obj):
+        images = obj.images.all()
+        if images.exists():
+            return [img.image.url for img in images]
         if obj.background_image:
-            return obj.background_image.url
-        return ''
+            return [obj.background_image.url]
+        return []
+
+    def get_background_image_url(self, obj):
+        urls = self.get_background_image_urls(obj)
+        return urls[0] if urls else ''
 
 
 class TrustBarItemSerializer(serializers.ModelSerializer):

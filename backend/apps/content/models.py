@@ -344,6 +344,27 @@ class HeroSection(models.Model):
         return self.headline
 
 
+class HeroSectionImage(models.Model):
+    """Carousel slide for hero section. Order determines display sequence."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    hero_section = models.ForeignKey(
+        HeroSection,
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+    image = models.ImageField(upload_to='hero/carousel/')
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'hero_section_images'
+        ordering = ['order', 'created_at']
+        indexes = [models.Index(fields=['hero_section'])]
+
+    def __str__(self):
+        return f"Hero slide {self.order}"
+
+
 class TrustBarItem(models.Model):
     """Model for trust bar items below hero (e.g. Ships in 24h, Gift note)."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
