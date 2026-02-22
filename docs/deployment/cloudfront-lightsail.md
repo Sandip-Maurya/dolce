@@ -386,18 +386,21 @@ DNS is configured in **Part 0** (Lightsail DNS zone, nameserver transfer, A reco
 
 ## Part 3: CI/CD Pipeline
 
-See [ghcr-pipeline.md](ghcr-pipeline.md) for the build and deploy pipeline. Summary: push to `stg` or `prod` → GitHub Actions builds images → GHCR; on Lightsail run `docker compose -f docker-compose.stg.yml pull && up -d` (or prod).
+See [ghcr-pipeline.md](ghcr-pipeline.md) for the full build and deploy pipeline.
+
+- **Staging:** Push to `stg` → GitHub Actions builds images, pushes to GHCR, then **automatically deploys** to staging Lightsail (SSH + `git pull` + `docker compose pull` + `up -d`). No manual steps.
+- **Production:** Push to `prod` → GitHub Actions builds and pushes images only; you **deploy manually** on Lightsail (see below).
 
 ### Deployment Commands
 
-**Staging:**
+**Staging (usually automatic; manual only if re-deploying without a new push):**
 ```bash
 cd ~/dolce && git pull origin stg
 docker compose -f docker-compose.stg.yml pull
 docker compose -f docker-compose.stg.yml up -d
 ```
 
-**Production:**
+**Production (manual after each push to prod):**
 ```bash
 cd ~/dolce && git pull origin prod
 docker compose -f docker-compose.prod.yml pull
